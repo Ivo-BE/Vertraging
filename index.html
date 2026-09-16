@@ -50,14 +50,14 @@
 
 <div id="menu"><div class="box">
   <h1>Vertraagd beeld</h1>
-  <p>Kies een code van minstens 4 tekens (bv. VNKD1) en gebruik dezelfde code op beide toestellen, op dezelfde wifi.</p>
+  <p>Eén toestel filmt, een ander toont het vertraagde beeld (telefoon, tablet of laptop). Kies een code van minstens 4 tekens (bv. VNKD1) en gebruik dezelfde code op beide toestellen, op dezelfde wifi.</p>
   <input id="room" maxlength="12" placeholder="CODE" value="">
-  <button id="btnScreen">Dit is het scherm (tablet)</button>
-  <button id="btnCam" class="alt">Dit is de camera (telefoon)</button>
+  <button id="btnScreen">Dit toestel is het scherm</button>
+  <button id="btnCam" class="alt">Dit toestel is de camera</button>
   <button id="btnLocal" class="alt">Camera en scherm op één toestel</button>
   <button id="btnPlay" class="alt">Opname bekijken</button>
   <button id="btnHelp" class="alt" style="font-size:15px;padding:10px 16px">Handleiding</button>
-  <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van telefoon naar tablet over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
+  <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
   <input type="file" id="playFile" accept="video/*" hidden>
   <details id="cfg" class="hidden"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
     <div style="display:grid;gap:8px;margin-top:10px">
@@ -71,14 +71,14 @@
 <div id="help" class="hidden" style="position:fixed;inset:0;background:#000;color:#ddd;overflow:auto;z-index:6;padding:20px 18px calc(20px + env(safe-area-inset-bottom));font:15px/1.5 system-ui">
   <div style="max-width:640px;margin:0 auto">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px"><h2 style="margin:0;color:#fff">Handleiding Vertraagd beeld</h2><button id="helpClose" style="font:600 15px system-ui;padding:8px 14px;border-radius:8px;border:1px solid #555;background:#222;color:#fff">Sluit</button></div>
-    <p>Met deze app ziet een speler zichzelf een paar seconden na de actie terug: smash, opslag, receptie. Eén toestel volstaat; met twee toestellen filmt de telefoon en toont de tablet.</p>
+    <p>Met deze app ziet een speler zichzelf een paar seconden na de actie terug: smash, opslag, receptie. Eén toestel volstaat; met twee toestellen filmt het ene (bv. telefoon) en toont het andere (tablet of laptop).</p>
 
     <h3 style="color:#fff">Snel starten (één toestel)</h3>
     <ol><li>Zet de telefoon of tablet <b>liggend</b> op een statief, gericht op het veld.</li><li>Tik <b>Camera en scherm op één toestel</b> en geef toestemming voor de camera.</li><li>Kies de vertraging met de schuifregelaar (2–30 s; 8–10 s is een goede start). Na die tijd loopt het beeld.</li><li>De speler doet de actie, loopt naar het toestel en kijkt.</li></ol>
 
-    <h3 style="color:#fff">Telefoon filmt, tablet toont</h3>
-    <ol><li>Zet beide toestellen op <b>dezelfde wifi</b>, of zet de hotspot van de telefoon aan en verbind de tablet daarmee.</li><li>Op de tablet: typ een <b>code</b> (min. 4 tekens, bv. VNKD1) → <b>Dit is het scherm (tablet)</b>.</li><li>Op de telefoon: dezelfde code → <b>Dit is de camera (telefoon)</b>. Telefoon liggend op het statief.</li><li>Na enkele seconden "Verbonden"; de vertraging stel je op de tablet in.</li></ol>
-    <p>Het beeld gaat rechtstreeks van telefoon naar tablet over de wifi. Alleen om elkaar te vinden is kort internet nodig (via de hotspot vanzelf). Bereik: 10–15 m in open ruimte.</p>
+    <h3 style="color:#fff">Eén toestel filmt, een ander toont</h3>
+    <ol><li>Zet beide toestellen op <b>dezelfde wifi</b>, of zet de hotspot van de telefoon aan en verbind de tablet daarmee.</li><li>Op het toestel dat toont (tablet, laptop of tweede telefoon): typ een <b>code</b> (min. 4 tekens, bv. VNKD1) → <b>Dit toestel is het scherm</b>.</li><li>Op het toestel dat filmt (meestal de telefoon): dezelfde code → <b>Dit toestel is de camera</b>. Liggend op het statief.</li><li>Na enkele seconden "Verbonden"; de vertraging stel je in op het toestel dat toont.</li></ol>
+    <p>Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi. Alleen om elkaar te vinden is kort internet nodig (via de hotspot vanzelf). Bereik: 10–15 m in open ruimte.</p>
 
     <h3 style="color:#fff">Knoppen</h3>
     <ul><li><b>Vertraging</b>: schuifregelaar, direct van kracht.</li><li><b>Camera ⇄</b>: voor- of achtercamera.</li><li><b>● Opnemen / ■ Stop</b>: neemt het live beeld op. Bewaard in Downloads (Android, laptop) of via het deelmenu (iPad/iPhone: "Bewaar video" in Foto's of "Bewaar in Bestanden").</li><li><b>Pauze</b>: bevriest het beeld om iets aan te wijzen.</li><li><b>Spiegel</b>: spiegelt het beeld.</li><li><b>Vullen</b>: schermvullend, snijdt randen weg als de verhoudingen niet kloppen.</li><li><b>Fullscreen</b>.</li><li><b>■ Stop</b>: stopt camera en verbinding, terug naar het startscherm.</li><li><b>▾ knoppen</b>: klapt de balk in; tik op het beeld om ze terug te halen.</li></ul>
@@ -87,7 +87,7 @@
     <p>Startscherm → <b>Opname bekijken</b> → kies een video (Foto's of Bestanden). Voortgangsbalk om te spoelen, <b>⏮ Begin</b>, −5s/+5s, <b>−1 beeld / +1 beeld</b> om beeldje per beeldje te gaan, snelheid 1× / ½× / ¼×, Spiegel, Fullscreen. <b>Terug</b> sluit de video.</p>
 
     <h3 style="color:#fff">Tips</h3>
-    <ul><li>Zet <b>automatisch vergrendelen uit</b> (Instellingen → Scherm) en de lader erin; camera + hotspot + opname trekken de batterij snel leeg.</li><li>Laad de app thuis één keer na een update; daarna werkt "één toestel" en "opname bekijken" ook zonder bereik.</li><li>Telefoon liggend = breedbeeld op de tablet. Staand filmen geeft zwarte randen.</li><li>Op een iPad opnemen: liever in Safari dan vanaf het beginscherm-icoon; dan is bewaren betrouwbaarder.</li><li>Geen "Verbonden"? Controleer de code op beide toestellen, de wifi/hotspot, en of de telefoon nog internet heeft.</li></ul>
+    <ul><li>Zet <b>automatisch vergrendelen uit</b> (Instellingen → Scherm) en de lader erin; camera + hotspot + opname trekken de batterij snel leeg.</li><li>Laad de app thuis één keer na een update; daarna werkt "één toestel" en "opname bekijken" ook zonder bereik.</li><li>Camera-toestel liggend = breedbeeld op het scherm. Staand filmen geeft zwarte randen.</li><li>Op een iPad opnemen: liever in Safari dan vanaf het beginscherm-icoon; dan is bewaren betrouwbaarder.</li><li>Geen "Verbonden"? Controleer de code op beide toestellen, de wifi/hotspot, en of de telefoon nog internet heeft.</li></ul>
 
     <h3 style="color:#fff">Privacy</h3>
     <p>Er wordt niets bewaard in de cloud. Beeld gaat van toestel naar toestel; opnames staan alleen op het toestel waar je op Opnemen tikte. Vraag toestemming aan spelers (en bij jeugd aan ouders) voor je opneemt.</p>
@@ -188,7 +188,7 @@ $('btnHelp').onclick=()=>$('help').classList.remove('hidden');$('helpClose').onc
 $('btnLocal').onclick=async()=>{mode='local';showUi();$('cam').classList.remove('hidden');$('rec').classList.remove('hidden');await startCamera();startBuffer(video)};
 $('btnCam').onclick=async()=>{if(!needRoom())return;mode='cam';showUi();$('cam').classList.remove('hidden');$('rec').classList.remove('hidden');$('delayWrap').classList.add('hidden');$('mirror').classList.add('hidden');$('pause').classList.add('hidden');
   await startCamera();$('camPreview').srcObject=stream;$('camPreview').style.display='block';$('out').style.display='none';joinRoom()};
-$('btnScreen').onclick=()=>{if(!needRoom())return;mode='screen';showUi();$('rec').classList.remove('hidden');joinRoom();setStatus('Wacht op camera met code '+room+'…',true)};
+$('btnScreen').onclick=()=>{if(!needRoom())return;mode='screen';showUi();$('rec').classList.remove('hidden');joinRoom();setStatus('Wacht op het camera-toestel met code '+room+'…',true)};
 
 // ---------- opname bekijken
 const pb=$('playback');const speeds=[1,0.5,0.25];let spi=0;
