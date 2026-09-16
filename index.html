@@ -58,7 +58,7 @@
   <button id="btnLocal" class="alt">Camera en scherm op één toestel</button>
   <button id="btnPlay" class="alt">Opname bekijken</button>
   <button id="btnHelp" class="alt" style="font-size:15px;padding:10px 16px">Handleiding</button>
-  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 18</p>
+  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 19</p>
   <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
   <input type="file" id="playFile" accept="video/*" hidden>
   <details id="cfg" class="hidden"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
@@ -153,7 +153,7 @@ $('fs').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();els
 let pipTimer=null;
 function camLabel(){$('cam').textContent='Camera: '+(facing==='environment'?'achter':'voor')}
 $('cam').onclick=()=>{if(recorder){alert('Stop eerst de opname.');return}facing=facing==='environment'?'user':'environment';camLabel();
-  startCamera().then(()=>{if(pc)renegotiate();if(mode==='local'){const pip=$('pip');pip.srcObject=stream;pip.style.display='block';setStatus('Camera gewisseld — live voorbeeld, buffer vult opnieuw',true);clearTimeout(pipTimer);pipTimer=setTimeout(()=>{pip.style.display='none';pip.srcObject=null},4000)}})};
+  startCamera().then(()=>{if(pc)renegotiate();if(mode==='cam'){const cp=$('camPreview');cp.srcObject=stream;cp.play().catch(()=>{})}if(mode==='local'){const pip=$('pip');pip.srcObject=stream;pip.style.display='block';setStatus('Camera gewisseld — live voorbeeld, buffer vult opnieuw',true);clearTimeout(pipTimer);pipTimer=setTimeout(()=>{pip.style.display='none';pip.srcObject=null},4000)}})};
 
 // ---------- opnemen (op het toestel dat filmt)
 let recorder=null,chunks=[],recStart=0,recTimer=null;
@@ -193,7 +193,7 @@ $('cfgSave').onclick=()=>{const u=$('cfgUrl').value.trim(),k=$('cfgKey').value.t
 $('btnHelp').onclick=()=>$('help').classList.remove('hidden');$('helpClose').onclick=()=>$('help').classList.add('hidden');
 $('btnLocal').onclick=async()=>{mode='local';showUi();$('cam').classList.remove('hidden');$('rec').classList.remove('hidden');camLabel();await startCamera();startBuffer(video)};
 $('btnCam').onclick=async()=>{if(!needRoom())return;mode='cam';showUi();$('cam').classList.remove('hidden');$('rec').classList.remove('hidden');camLabel();$('delayWrap').classList.add('hidden');$('mirror').classList.add('hidden');$('pause').classList.add('hidden');
-  await startCamera();$('camPreview').srcObject=stream;$('camPreview').style.display='block';$('out').style.display='none';joinRoom()};
+  await startCamera();const cp=$('camPreview');cp.srcObject=stream;cp.style.display='block';cp.muted=true;cp.play().catch(()=>{});$('out').style.display='none';joinRoom()};
 $('btnScreen').onclick=()=>{if(!needRoom())return;mode='screen';showUi();$('rec').classList.remove('hidden');joinRoom();setStatus('Wacht op het camera-toestel met code '+room+'…',true)};
 
 // ---------- opname bekijken
@@ -270,7 +270,7 @@ function joinRoom(){
   channel.on('broadcast',{event:'sig'},({payload})=>onSignal(payload)).subscribe(st=>{
     if(st==='SUBSCRIBED'){
       if(mode==='screen'){send({type:'want'});clearInterval(wantTimer);wantTimer=setInterval(()=>{if(!pc||!['connected','connecting'].includes(pc.connectionState))send({type:'want'})},3000)}
-      else{send({type:'ready'});setStatus('Camera klaar, code '+room+'. Wacht op scherm…',true)}
+      else{send({type:'ready'});setStatus('CAMERA · live voorbeeld · code '+room+' · wacht op scherm…',true)}
     }
   });
 }
@@ -281,7 +281,7 @@ function newPc(){
   pc=new RTCPeerConnection(ICE);
   pc.onicecandidate=e=>{if(e.candidate)send({type:'ice',cand:e.candidate})};
   pc.onconnectionstatechange=()=>{
-    if(pc.connectionState==='connected'){setStatus(mode==='cam'?'Verbonden met scherm':'Verbonden – buffer vult…',true);clearInterval(wantTimer)}
+    if(pc.connectionState==='connected'){setStatus(mode==='cam'?'CAMERA · live voorbeeld · verbonden met scherm':'Verbonden – buffer vult…',true);clearInterval(wantTimer)}
     if(['failed','disconnected'].includes(pc.connectionState)){setStatus('Verbinding verbroken, opnieuw proberen…',true);if(mode==='screen'){clearInterval(wantTimer);wantTimer=setInterval(()=>{if(!pc||!['connected','connecting'].includes(pc.connectionState))send({type:'want'})},3000)}}
   };
   if(mode==='screen')pc.ontrack=e=>{stream=e.streams[0];const v=document.createElement('video');v.muted=true;v.playsInline=true;v.autoplay=true;v.srcObject=stream;v.play().then(()=>startBuffer(v))};
