@@ -24,6 +24,9 @@
   #menu input{font:700 28px system-ui;text-align:center;letter-spacing:.2em;padding:10px;border-radius:10px;border:1px solid #444;background:#111;color:#fff;text-transform:uppercase}
   #menu button{font:600 18px system-ui;padding:14px 20px;border-radius:12px;border:0;background:#EF8A3A;color:#000}
   #menu button.alt{background:#222;color:#fff;border:1px solid #555}
+  .bar.collapsed>*:not(.handle){display:none!important}
+  .bar.collapsed{padding:4px 10px calc(4px + env(safe-area-inset-bottom));background:transparent;backdrop-filter:none;justify-content:flex-end}
+  .handle{font:600 12px system-ui;padding:6px 10px;border-radius:14px;border:1px solid #555;background:rgba(34,34,34,.85);color:#fff;flex:0 0 auto!important;margin-left:auto}
   .bar{position:fixed;left:0;right:0;bottom:0;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:rgba(0,0,0,.55);display:flex;gap:6px;align-items:center;flex-wrap:wrap;z-index:4;backdrop-filter:blur(6px)}
   .bar label{font-size:12px;color:#ccc;display:flex;align-items:center;gap:6px;flex:1 1 100%}
   .bar input[type=range]{flex:1;min-width:80px}
@@ -66,12 +69,14 @@
 
 <video id="playback" playsinline style="position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:none"></video>
 <div class="bar hidden" id="pbar">
+  <button class="handle" data-toggle="pbar">▾ knoppen</button>
   <label style="flex:1 1 100%"><span id="pbTime" style="min-width:90px;font-variant-numeric:tabular-nums">0:00 / 0:00</span><input type="range" id="pbSeek" min="0" max="1000" value="0" style="flex:1"></label>
   <button id="pbStart">⏮ Begin</button>
   <button id="pb5">−5s</button><button id="pbf">−1 beeld</button><button id="pbPlay">▶︎ / ⏸</button><button id="pff">+1 beeld</button><button id="pf5">+5s</button>
   <button id="pbSpeed" style="min-width:64px">1×</button><button id="pbMirror">Spiegel</button><button id="pbFs">Fullscreen</button><button id="pbBack">Terug</button>
 </div>
 <div class="bar hidden" id="bar">
+  <button class="handle" data-toggle="bar">▾ knoppen</button>
   <label id="delayWrap">Vertraging <input type="range" id="delay" min="2" max="30" step="1" value="10"> <b id="delayVal">10 s</b></label>
   <button id="cam" class="hidden">Camera ⇄</button>
   <button id="rec" class="hidden">● Opnemen</button>
@@ -174,6 +179,9 @@ const fmtT=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
 pb.ontimeupdate=()=>{const dur=isFinite(pb.duration)?pb.duration:0;$('pbTime').textContent=`${fmtT(pb.currentTime)} / ${fmtT(dur)}`;if(!seeking&&dur)$('pbSeek').value=Math.round(1000*pb.currentTime/dur);setStatus(fmtT(pb.currentTime),false)};
 pb.ondurationchange=()=>{if(!isFinite(pb.duration)){pb.currentTime=1e9;pb.addEventListener('seeked',()=>{pb.currentTime=0},{once:true})}};
 
+// knoppenbalk in- en uitklappen (tik op het beeld = uitklappen)
+document.querySelectorAll('.handle').forEach(h=>h.onclick=e=>{e.stopPropagation();const b=$(h.dataset.toggle);const c=b.classList.toggle('collapsed');h.textContent=c?'▴ knoppen':'▾ knoppen'});
+[out,$('camPreview'),pb].forEach(el=>el.addEventListener('click',()=>{document.querySelectorAll('.bar.collapsed').forEach(b=>{b.classList.remove('collapsed');b.querySelector('.handle').textContent='▾ knoppen'})}));
 function needRoom(){room=$('room').value.trim().toUpperCase();if(room.length<4){alert('Kies een code van minstens 4 tekens.');return false}if(!SUPABASE_URL||!SUPABASE_ANON_KEY){alert('Vul eerst de verbinding in (Supabase URL en key).');$('cfg').open=true;return false}localStorage.setItem('vt:room',room);return true}
 function showUi(){$('menu').classList.add('hidden');$('bar').classList.remove('hidden');$('status').classList.remove('hidden')}
 function setStatus(t,live){$('status').textContent=t;$('status').className=live?'live':''}
