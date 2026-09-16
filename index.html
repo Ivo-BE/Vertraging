@@ -30,8 +30,10 @@
   .bar .handlewrap{flex:1 1 100%;display:flex;justify-content:flex-end;order:-1}
   .bar{position:fixed;left:0;right:0;bottom:0;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:rgba(0,0,0,.55);display:flex;gap:6px;align-items:center;flex-wrap:wrap;z-index:4;backdrop-filter:blur(6px)}
   .bar label{font-size:12px;color:#ccc;display:flex;align-items:center;gap:6px;flex:1 1 100%}
+  #camDelays label{flex:1 1 45%}
   .bar input[type=range]{flex:1;min-width:80px}
   .bar button{font:600 13px system-ui;padding:8px 6px;border-radius:8px;border:1px solid #555;background:#222;color:#fff;flex:1 1 28%;min-width:0;white-space:nowrap}
+  .bar button.mini{flex:0 0 auto;padding:5px 8px;font-size:12px}
   #menu button{padding:12px 16px;font-size:16px}
   #menu h1{font-size:26px}
   #menu input{font-size:22px}
@@ -58,7 +60,7 @@
   <button id="btnLocal" class="alt">Camera en scherm op één toestel</button>
   <button id="btnPlay" class="alt">Opname bekijken</button>
   <button id="btnHelp" class="alt" style="font-size:15px;padding:10px 16px">Handleiding</button>
-  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 24</p>
+  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 26</p>
   <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
   <input type="file" id="playFile" accept="video/*" hidden>
   <details id="cfg" class="hidden"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
@@ -81,7 +83,9 @@
     <h3 style="color:#fff">Eén toestel filmt, één of meer tonen</h3>
     <ol><li>Zet beide toestellen op <b>dezelfde wifi</b>, of zet de hotspot van de telefoon aan en verbind de tablet daarmee.</li><li>Op het toestel dat toont (tablet, laptop of tweede telefoon): typ een <b>code</b> (min. 4 tekens, bv. VNKD1) → <b>Dit toestel is het scherm</b>.</li><li>Op het toestel dat filmt (meestal de telefoon): dezelfde code → <b>Dit toestel is de camera</b>. Liggend op het statief.</li><li>Na enkele seconden "Verbonden"; de vertraging stel je in op het toestel dat toont.</li></ol>
     <h3 style="color:#fff">Meerdere camera's</h3>
-    <p>Meer telefoons als camera op één scherm kan ook: elk toestel dezelfde code en <b>Dit toestel is de camera</b>. Het scherm toont ze als raster (2 naast elkaar, of 2×2), allemaal met dezelfde vertraging, in iets lagere resolutie. Handig om een actie van voor én van opzij tegelijk terug te zien. Tot vier camera's; op een oudere tablet liever twee.</p>
+    <p>Meer telefoons als camera op één scherm kan ook: elk toestel dezelfde code en <b>Dit toestel is de camera</b>. Het scherm toont ze als raster (2 naast elkaar, of 2×2), allemaal met dezelfde vertraging, in iets lagere resolutie. Handig om een actie van voor én van opzij tegelijk terug te zien. Per camera kun je in de knoppenbalk een eigen vertraging instellen. Tot vier camera's; op een oudere tablet liever twee.</p>
+    <p>Naast de vertraging staan per camera ook <b>↻</b> (draaien) en <b>⇄</b> (spiegelen), voor een telefoon die anders gemonteerd staat.</p>
+    <p><b>Opnemen op het scherm-toestel</b> neemt op wat je ziet: bij meerdere camera's dus het raster, gesynchroniseerd en met de vertraging toegepast. Voor een opname op volle resolutie per camera neem je op de telefoon zelf op.</p>
     <h3 style="color:#fff">Meerdere schermen</h3>
     <p>Meer schermen op dezelfde camera kan: geef elk scherm-toestel dezelfde code en tik overal <b>Dit toestel is het scherm</b>. Elk scherm kiest zijn eigen vertraging, bv. een tablet bij het net op 8 s voor de speler en een laptop bij de bank op 3 s voor de coach. De camera toont hoeveel schermen verbonden zijn. Tot drie à vier schermen gaat vlot over wifi; de volgorde van starten maakt niet uit.</p>
     <p>Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi. Alleen om elkaar te vinden is kort internet nodig (via de hotspot vanzelf). Bereik: 10–15 m in open ruimte.</p>
@@ -111,6 +115,7 @@
 <div class="bar hidden" id="bar">
   <span class="handlewrap"><button class="handle" data-toggle="bar">▾ knoppen</button></span>
   <label id="delayWrap">Vertraging <input type="range" id="delay" min="2" max="30" step="1" value="10"> <b id="delayVal">10 s</b></label>
+  <div id="camDelays" class="hidden" style="flex:1 1 100%;display:flex;gap:10px;flex-wrap:wrap"></div>
   <button id="cam" class="hidden">Camera: achter</button>
   <button id="rec" class="hidden">● Opnemen</button>
   <button id="pause">Pauze</button>
@@ -139,7 +144,7 @@ let stream=null,facing='environment',delay=10,paused=false,mirror=false,mode=nul
 const FPS=25;
 let pc=null,channel=null,room='';const SID=Math.random().toString(36).slice(2,8);const CID=SID;const pcs={};   // camera: verbinding per scherm
 
-$('delay').oninput=e=>{delay=+e.target.value;$('delayVal').textContent=delay+' s'};
+$('delay').oninput=e=>{delay=+e.target.value;$('delayVal').textContent=delay+' s';Object.values(cams).forEach(c=>c.delay=null);renderCamDelays()};
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Verder':'Pauze';$('pause').classList.toggle('on',paused)};
 $('mirror').onclick=()=>{mirror=!mirror;$('mirror').classList.toggle('on',mirror)};
 $('rot').onclick=()=>{rot=(rot+90)%360;$('rot').textContent='↻ Draai'+(rot?' '+rot+'°':'');$('rot').classList.toggle('on',rot!==0);applyRot()};
@@ -170,9 +175,10 @@ $('cam').onclick=()=>{if(recorder){alert('Stop eerst de opname.');return}facing=
 let recorder=null,chunks=[],recStart=0,recTimer=null;
 $('rec').onclick=()=>recorder?stopRec():startRec();
 function startRec(){
-  if(!stream){alert('Nog geen beeld om op te nemen.');return}
+  const recSrc=mode==='screen'?(camCount()?out.captureStream(25):null):stream;
+  if(!recSrc){alert('Nog geen beeld om op te nemen.');return}
   const mime=['video/mp4','video/webm;codecs=vp9','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';
-  try{recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:4_000_000})}catch(e){alert('Opnemen wordt niet ondersteund in deze browser.');return}
+  try{recorder=new MediaRecorder(recSrc,{mimeType:mime,videoBitsPerSecond:4_000_000})}catch(e){alert('Opnemen wordt niet ondersteund in deze browser.');return}
   chunks=[];recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
   recorder.onstop=async()=>{
     const blob=new Blob(chunks,{type:recorder.mimeType});const ext=recorder.mimeType.includes('mp4')?'mp4':'webm';
@@ -248,10 +254,16 @@ async function startCamera(){
 const cams={};let camOrder=[];let lastSrc=null;let sizedFlag=false;const sizedOK=()=>sizedFlag;
 let w=1280,h=720;                                            // uitvoercanvas
 function camCount(){return camOrder.length}
+const camDelay=cam=>cam.delay!=null?cam.delay:delay;
+function renderCamDelays(){const box=$('camDelays');if(!box)return;const n=camCount();box.classList.toggle('hidden',n<2);if(n<2)return;
+  box.innerHTML=camOrder.map((id,i)=>{const c=cams[id];const d=camDelay(c);return `<label>Cam ${i+1} <input type="range" min="2" max="30" step="1" value="${d}" data-cam="${id}"> <b>${d} s</b> <button class="mini ${c.rot?'on':''}" data-rot="${id}">↻${c.rot?' '+c.rot+'°':''}</button><button class="mini ${c.mirror?'on':''}" data-mir="${id}">⇄</button></label>`}).join('');
+  box.querySelectorAll('input').forEach(inp=>inp.oninput=()=>{cams[inp.dataset.cam].delay=+inp.value;inp.nextElementSibling.textContent=inp.value+' s'});
+  box.querySelectorAll('[data-rot]').forEach(b=>b.onclick=()=>{const c=cams[b.dataset.rot];c.rot=(c.rot+90)%360;renderCamDelays()});
+  box.querySelectorAll('[data-mir]').forEach(b=>b.onclick=()=>{const c=cams[b.dataset.mir];c.mirror=!c.mirror;renderCamDelays()})}
 function bufRes(){return camCount()>1?[640,360]:[960,540]}     // bufferresolutie per camera
 function addCam(id,src,label){
-  const cam={id,src,label,frames:[],bw:0,bh:0,sized:false,t0:performance.now(),timer:null};
-  cams[id]=cam;if(!camOrder.includes(id))camOrder.push(id);lastSrc=src;
+  const cam={id,src,label,frames:[],bw:0,bh:0,sized:false,t0:performance.now(),timer:null,delay:null,rot:0,mirror:false};
+  cams[id]=cam;if(!camOrder.includes(id))camOrder.push(id);lastSrc=src;renderCamDelays();
   const dims=()=>{let vw=src.videoWidth,vh=src.videoHeight;if((!vw||!vh)&&src.srcObject){const tr=src.srcObject.getVideoTracks()[0];const st=tr&&tr.getSettings?tr.getSettings():{};vw=st.width||0;vh=st.height||0}
     if((!vw||!vh)&&performance.now()-cam.t0>1500){vw=1280;vh=720}return[vw,vh]};
   cam.size=()=>{const [vw,vh]=dims();if(!vw||!vh)return;const [mw,mh]=bufRes();const ar=vw/vh;if(ar>=1){cam.bw=mw;cam.bh=Math.round(mw/ar)}else{cam.bh=mh*2;cam.bw=Math.round(cam.bh*ar)}cam.sized=true;sizedFlag=true;layout()};
@@ -261,11 +273,11 @@ function addCam(id,src,label){
   cam.timer=setInterval(()=>{
     if(!cam.sized)cam.size();if(paused||!cam.sized||src.readyState<2){if(src.paused)src.play().catch(()=>{});return}
     const c=document.createElement('canvas');c.width=cam.bw;c.height=cam.bh;c.getContext('2d').drawImage(src,0,0,cam.bw,cam.bh);
-    cam.frames.push({t:performance.now(),c});const maxAge=(delay+1)*1000;while(cam.frames.length&&cam.frames[0].t<performance.now()-maxAge)cam.frames.shift();
+    cam.frames.push({t:performance.now(),c});const maxAge=(camDelay(cam)+1)*1000;while(cam.frames.length&&cam.frames[0].t<performance.now()-maxAge)cam.frames.shift();
   },1000/(camCount()>1?20:FPS));
   if(!drawing){drawing=true;requestAnimationFrame(draw)}
 }
-function removeCam(id){const cam=cams[id];if(!cam)return;clearInterval(cam.timer);delete cams[id];camOrder=camOrder.filter(x=>x!==id);layout()}
+function removeCam(id){const cam=cams[id];if(!cam)return;clearInterval(cam.timer);delete cams[id];camOrder=camOrder.filter(x=>x!==id);layout();renderCamDelays()}
 function clearCams(){camOrder.slice().forEach(removeCam);sizedFlag=false}
 // layout van het uitvoercanvas: één camera = zijn eigen verhouding; meerdere = 16:9 raster
 function layout(){
@@ -277,21 +289,23 @@ function layout(){
 function cells(){const n=camCount();if(n<=1)return[[0,0,w,h]];const cols=2,rows=n<=2?1:2;const cw=w/cols,ch=h/rows;return camOrder.map((_,i)=>[(i%cols)*cw,Math.floor(i/cols)*ch,cw,ch])}
 let drawing=false;
 function draw(){
-  const now=performance.now(),target=now-delay*1000;const n=camCount();
+  const now=performance.now();const n=camCount();
   if(!n){drawing=false;return}
   const rects=cells();let filling=0,haveMin=Infinity;const W=out.width,H=out.height;
   const layer=drawLayer(w,h);const lc=layer.getContext('2d');lc.fillStyle='#000';lc.fillRect(0,0,w,h);
-  camOrder.forEach((id,i)=>{const cam=cams[id];const [x,y,cw,ch]=rects[i];
+  camOrder.forEach((id,i)=>{const cam=cams[id];const [x,y,cw,ch]=rects[i];const cd=camDelay(cam);const target=now-cd*1000;
     let f=null;for(const fr of cam.frames){if(fr.t<=target)f=fr;else break}
-    const fit=(iw,ih)=>{const s=Math.min(cw/iw,ch/ih);const dw=iw*s,dh=ih*s;return[x+(cw-dw)/2,y+(ch-dh)/2,dw,dh]};
-    if(f){const [dx,dy,dw,dh]=fit(f.c.width,f.c.height);lc.drawImage(f.c,dx,dy,dw,dh)}
+    // per camera: draaien/spiegelen binnen het eigen vak
+    const put=(img,iw,ih)=>{const side=cam.rot%180!==0;const aw=side?ih:iw,ah=side?iw:ih;const sc=Math.min(cw/aw,ch/ah);const dw=iw*sc,dh=ih*sc;
+      lc.save();lc.translate(x+cw/2,y+ch/2);lc.rotate(cam.rot*Math.PI/180);if(cam.mirror)lc.scale(-1,1);lc.drawImage(img,-dw/2,-dh/2,dw,dh);lc.restore()};
+    if(f){put(f.c,f.c.width,f.c.height)}
     else{filling++;const have=cam.frames.length?(now-cam.frames[0].t)/1000:0;haveMin=Math.min(haveMin,have);
-      if(cam.src.readyState>=2&&cam.sized){const [dx,dy,dw,dh]=fit(cam.bw,cam.bh);lc.drawImage(cam.src,dx,dy,dw,dh);lc.fillStyle='rgba(0,0,0,.5)';lc.fillRect(x,y+ch-30,cw,30);lc.fillStyle='#fff';lc.font='700 16px system-ui';lc.fillText(`LIVE · vertraagd over ${Math.max(0,delay-have).toFixed(0)} s`,x+10,y+ch-9)}}
-    if(n>1){lc.fillStyle='rgba(0,0,0,.5)';lc.fillRect(x+cw-110,y,110,24);lc.fillStyle='#fff';lc.font='700 13px system-ui';lc.fillText(cam.label||('Camera '+(i+1)),x+cw-102,y+17);lc.strokeStyle='#222';lc.strokeRect(x,y,cw,ch)}
+      if(cam.src.readyState>=2&&cam.sized){put(cam.src,cam.bw,cam.bh);lc.fillStyle='rgba(0,0,0,.5)';lc.fillRect(x,y+ch-30,cw,30);lc.fillStyle='#fff';lc.font='700 16px system-ui';lc.fillText(`LIVE · vertraagd over ${Math.max(0,cd-have).toFixed(0)} s`,x+10,y+ch-9)}}
+    if(n>1){lc.fillStyle='rgba(0,0,0,.5)';lc.fillRect(x+cw-150,y,150,24);lc.fillStyle='#fff';lc.font='700 13px system-ui';lc.fillText((cam.label||('Camera '+(i+1)))+' · '+cd+' s',x+cw-142,y+17);lc.strokeStyle='#222';lc.strokeRect(x,y,cw,ch)}
   });
   ctx.clearRect(0,0,W,H);drawRotated(layer);
   if(filling){const cam=cams[camOrder[0]];const src=cam.src;const diag=src&&(src.readyState<2||src.paused)?` · camera geeft nog geen beeld (rs ${src.readyState})`:'';setStatus(`Buffer vult… ${Math.min(delay,haveMin===Infinity?0:haveMin).toFixed(0)} / ${delay} s${diag} · je ziet nu live beeld`,true)}
-  else setStatus(`Vertraging ${delay} s${n>1?' · '+n+" camera's":''}`,false);
+  else setStatus(n>1?`${n} camera's · vertraging ${camOrder.map(id=>camDelay(cams[id])+' s').join(' / ')}`:`Vertraging ${delay} s`,false);
   requestAnimationFrame(draw);
 }
 let _layer=null;function drawLayer(lw,lh){if(!_layer||_layer.width!==lw||_layer.height!==lh){_layer=document.createElement('canvas');_layer.width=lw;_layer.height=lh}return _layer}
