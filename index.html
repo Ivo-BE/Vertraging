@@ -58,7 +58,7 @@
   <button id="btnLocal" class="alt">Camera en scherm op één toestel</button>
   <button id="btnPlay" class="alt">Opname bekijken</button>
   <button id="btnHelp" class="alt" style="font-size:15px;padding:10px 16px">Handleiding</button>
-  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 22</p>
+  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 23</p>
   <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
   <input type="file" id="playFile" accept="video/*" hidden>
   <details id="cfg" class="hidden"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
@@ -78,8 +78,10 @@
     <h3 style="color:#fff">Snel starten (één toestel)</h3>
     <ol><li>Zet de telefoon of tablet <b>liggend</b> op een statief, gericht op het veld.</li><li>Tik <b>Camera en scherm op één toestel</b> en geef toestemming voor de camera.</li><li>Kies de vertraging met de schuifregelaar (2–30 s; 8–10 s is een goede start). Na die tijd loopt het beeld.</li><li>De speler doet de actie, loopt naar het toestel en kijkt.</li></ol>
 
-    <h3 style="color:#fff">Eén toestel filmt, een ander toont</h3>
+    <h3 style="color:#fff">Eén toestel filmt, één of meer tonen</h3>
     <ol><li>Zet beide toestellen op <b>dezelfde wifi</b>, of zet de hotspot van de telefoon aan en verbind de tablet daarmee.</li><li>Op het toestel dat toont (tablet, laptop of tweede telefoon): typ een <b>code</b> (min. 4 tekens, bv. VNKD1) → <b>Dit toestel is het scherm</b>.</li><li>Op het toestel dat filmt (meestal de telefoon): dezelfde code → <b>Dit toestel is de camera</b>. Liggend op het statief.</li><li>Na enkele seconden "Verbonden"; de vertraging stel je in op het toestel dat toont.</li></ol>
+    <h3 style="color:#fff">Meerdere schermen</h3>
+    <p>Meer schermen op dezelfde camera kan: geef elk scherm-toestel dezelfde code en tik overal <b>Dit toestel is het scherm</b>. Elk scherm kiest zijn eigen vertraging, bv. een tablet bij het net op 8 s voor de speler en een laptop bij de bank op 3 s voor de coach. De camera toont hoeveel schermen verbonden zijn. Tot drie à vier schermen gaat vlot over wifi; de volgorde van starten maakt niet uit.</p>
     <p>Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi. Alleen om elkaar te vinden is kort internet nodig (via de hotspot vanzelf). Bereik: 10–15 m in open ruimte.</p>
 
     <h3 style="color:#fff">Knoppen</h3>
@@ -133,7 +135,7 @@ const video=document.createElement('video');video.muted=true;video.playsInline=t
 video.style.cssText='position:fixed;left:0;top:0;width:4px;height:4px;opacity:0.02;pointer-events:none;z-index:0';document.body.appendChild(video);
 let stream=null,facing='environment',delay=10,paused=false,mirror=false,mode=null,rot=0;
 const FPS=25;let frames=[],w=640,h=360,timer=null;
-let pc=null,channel=null,room='';
+let pc=null,channel=null,room='';const SID=Math.random().toString(36).slice(2,8);const pcs={};   // camera: verbinding per scherm
 
 $('delay').oninput=e=>{delay=+e.target.value;$('delayVal').textContent=delay+' s'};
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Verder':'Pauze';$('pause').classList.toggle('on',paused)};
@@ -148,7 +150,7 @@ if(localStorage.getItem('vt:fill')){document.body.classList.add('fill');$('fill'
 $('stopAll').onclick=async()=>{
   if(recorder){if(!confirm('De opname loopt nog. Stoppen en bewaren?'))return;stopRec();await new Promise(r=>setTimeout(r,600))}
   if(timer){clearInterval(timer);timer=null}frames=[];
-  clearInterval(wantTimer);if(pc){pc.close();pc=null}if(channel){try{channel.unsubscribe()}catch(e){}channel=null}
+  clearInterval(wantTimer);if(pc){pc.close();pc=null}Object.values(pcs).forEach(p=>p.close());for(const k in pcs)delete pcs[k];if(channel){try{channel.unsubscribe()}catch(e){}channel=null}
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   $('camPreview').srcObject=null;$('camPreview').style.display='none';$('pip').style.display='none';$('pip').srcObject=null;$('out').style.display='block';ctx.clearRect(0,0,out.width,out.height);
   $('bar').classList.add('hidden');$('status').classList.add('hidden');$('menu').classList.remove('hidden');
@@ -287,28 +289,45 @@ function joinRoom(){
   });
 }
 let wantTimer=null;
-const send=msg=>channel.send({type:'broadcast',event:'sig',payload:{...msg,from:mode}});
+const send=msg=>channel.send({type:'broadcast',event:'sig',payload:{...msg,from:mode,sid:mode==='screen'?SID:undefined}});
+function makePc(onTrackFn,sendFn){
+  const p=new RTCPeerConnection(ICE);
+  p.onicecandidate=e=>{if(e.candidate)sendFn({type:'ice',cand:e.candidate})};
+  if(onTrackFn)p.ontrack=onTrackFn;
+  return p;
+}
+// scherm: één verbinding
 function newPc(){
   if(pc)pc.close();
-  pc=new RTCPeerConnection(ICE);
-  pc.onicecandidate=e=>{if(e.candidate)send({type:'ice',cand:e.candidate})};
+  pc=makePc(e=>{stream=e.streams[0];const v=document.createElement('video');v.muted=true;v.playsInline=true;v.autoplay=true;v.srcObject=stream;v.play().then(()=>startBuffer(v))},send);
   pc.onconnectionstatechange=()=>{
-    if(pc.connectionState==='connected'){setStatus(mode==='cam'?'CAMERA · live voorbeeld · verbonden met scherm':'Verbonden – buffer vult…',true);clearInterval(wantTimer)}
-    if(['failed','disconnected'].includes(pc.connectionState)){setStatus('Verbinding verbroken, opnieuw proberen…',true);if(mode==='screen'){clearInterval(wantTimer);wantTimer=setInterval(()=>{if(!pc||!['connected','connecting'].includes(pc.connectionState))send({type:'want'})},3000)}}
+    if(pc.connectionState==='connected'){setStatus('Verbonden – buffer vult…',true);clearInterval(wantTimer)}
+    if(['failed','disconnected'].includes(pc.connectionState)){setStatus('Verbinding verbroken, opnieuw proberen…',true);clearInterval(wantTimer);wantTimer=setInterval(()=>{if(!pc||!['connected','connecting'].includes(pc.connectionState))send({type:'want'})},3000)}
   };
-  if(mode==='screen')pc.ontrack=e=>{stream=e.streams[0];const v=document.createElement('video');v.muted=true;v.playsInline=true;v.autoplay=true;v.srcObject=stream;v.play().then(()=>startBuffer(v))};
   return pc;
 }
-async function renegotiate(){newPc();stream.getTracks().forEach(t=>pc.addTrack(t,stream));const o=await pc.createOffer();await pc.setLocalDescription(o);send({type:'offer',sdp:o})}
+// camera: verbinding per scherm (sid)
+function screensStatus(){const n=Object.values(pcs).filter(p=>p.connectionState==='connected').length;setStatus(`CAMERA · live voorbeeld · ${n} scherm${n===1?'':'en'} verbonden · code ${room}`,true)}
+async function offerTo(sid){
+  if(pcs[sid])pcs[sid].close();
+  const sendTo=msg=>send({...msg,to:sid});
+  const p=makePc(null,sendTo);pcs[sid]=p;
+  p.onconnectionstatechange=()=>{if(['failed','closed'].includes(p.connectionState)){if(pcs[sid]===p)delete pcs[sid]}screensStatus()};
+  stream.getTracks().forEach(t=>p.addTrack(t,stream));
+  const o=await p.createOffer();await p.setLocalDescription(o);sendTo({type:'offer',sdp:o});
+}
+async function renegotiate(){for(const sid of Object.keys(pcs))await offerTo(sid)}   // na camerawissel: alle schermen opnieuw
 async function onSignal(m){
   if(m.from===mode)return;
   if(mode==='cam'){
-    if(m.type==='want'){if(!stream)return;if(pc&&['connected','connecting'].includes(pc.connectionState))return;await renegotiate()}
-    else if(m.type==='answer'&&pc){await pc.setRemoteDescription(m.sdp)}
-    else if(m.type==='ice'&&pc){try{await pc.addIceCandidate(m.cand)}catch(e){}}
+    const sid=m.sid;if(!sid)return;
+    if(m.type==='want'){if(!stream)return;const p=pcs[sid];if(p&&['connected','connecting'].includes(p.connectionState))return;await offerTo(sid)}
+    else if(m.type==='answer'&&pcs[sid]){await pcs[sid].setRemoteDescription(m.sdp)}
+    else if(m.type==='ice'&&pcs[sid]){try{await pcs[sid].addIceCandidate(m.cand)}catch(e){}}
   }else if(mode==='screen'){
-    if(m.type==='ready'){send({type:'want'})}
-    else if(m.type==='offer'){newPc();await pc.setRemoteDescription(m.sdp);const a=await pc.createAnswer();await pc.setLocalDescription(a);send({type:'answer',sdp:a})}
+    if(m.type==='ready'){send({type:'want'});return}
+    if(m.to&&m.to!==SID)return;   // niet voor dit scherm
+    if(m.type==='offer'){newPc();await pc.setRemoteDescription(m.sdp);const a=await pc.createAnswer();await pc.setLocalDescription(a);send({type:'answer',sdp:a})}
     else if(m.type==='ice'&&pc){try{await pc.addIceCandidate(m.cand)}catch(e){}}
   }
 }
