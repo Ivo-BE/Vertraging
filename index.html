@@ -188,11 +188,13 @@ async function startCamera(){
 // ---------- vertragingsbuffer (op het scherm-toestel)
 function startBuffer(src){
   frames=[];
-  const size=()=>{const vw=src.videoWidth||1280,vh=src.videoHeight||720;const scale=Math.min(1,960/Math.max(vw,vh));w=Math.round(vw*scale);h=Math.round(vh*scale);out.width=w;out.height=h};
-  size();src.addEventListener('resize',size);
+  // vaste canvasgrootte op basis van de beeldverhouding; latere resolutiewisselingen (WebRTC schaalt op) veranderen niets aan de weergave
+  let sized=false;
+  const size=()=>{const vw=src.videoWidth,vh=src.videoHeight;if(!vw||!vh)return;const ar=vw/vh;const landscape=ar>=1;w=landscape?960:Math.round(960*ar);h=landscape?Math.round(960/ar):960;out.width=w;out.height=h;sized=true};
+  size();src.addEventListener('resize',()=>{if(!sized)size();else{const vw=src.videoWidth,vh=src.videoHeight;if(vw&&vh&&Math.abs(vw/vh-w/h)>0.05){frames=[];size()}}});
   if(timer)clearInterval(timer);
   timer=setInterval(()=>{
-    if(paused||src.readyState<2)return;
+    if(paused||src.readyState<2||!sized){if(!sized)size();return}
     const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(src,0,0,w,h);
     frames.push({t:performance.now(),c});
     const maxAge=(delay+1)*1000;while(frames.length&&frames[0].t<performance.now()-maxAge)frames.shift();
@@ -202,7 +204,7 @@ function startBuffer(src){
 function draw(){
   const now=performance.now(),target=now-delay*1000;
   let f=null;for(const x of frames){if(x.t<=target)f=x;else break}
-  if(f){ctx.save();if(mirror){ctx.translate(w,0);ctx.scale(-1,1)}ctx.drawImage(f.c,0,0);ctx.restore();setStatus(`Vertraging ${delay} s`,false)}
+  if(f){ctx.save();if(mirror){ctx.translate(w,0);ctx.scale(-1,1)}ctx.drawImage(f.c,0,0,w,h);ctx.restore();setStatus(`Vertraging ${delay} s`,false)}
   else{const have=frames.length?(now-frames[0].t)/1000:0;setStatus(`Buffer vult… ${Math.min(delay,have).toFixed(0)} / ${delay} s`,true);ctx.fillStyle='#000';ctx.fillRect(0,0,w,h)}
   requestAnimationFrame(draw);
 }
