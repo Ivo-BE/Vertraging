@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Vertraging">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.4 system-ui,sans-serif;overflow:hidden}
@@ -127,7 +127,10 @@ function startRec(){
     const name=`opname-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.${ext}`;
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
     recorder=null;chunks=[];clearInterval(recTimer);$('rec').textContent='● Opnemen';$('rec').classList.remove('on');
-    setStatus(`Opname bewaard: ${name} (${(blob.size/1048576).toFixed(0)} MB)`,false);
+    const standalone=window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;const ios=/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&'ontouchend' in document;
+    setStatus(`Opname bewaard in Downloads: ${name} (${(blob.size/1048576).toFixed(0)} MB)`,false);
+    if(ios&&standalone)alert('Op iPad bewaart een app vanaf het beginscherm geen bestanden. Open de app in Safari zelf om op te nemen; het bestand komt dan in Bestanden → Downloads.');
+    else if(ios)alert('Opname bewaard. Je vindt ze in de app Bestanden → Downloads.');
   };
   recorder.start(1000);recStart=Date.now();$('rec').classList.add('on');
   recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);$('rec').textContent=`■ Stop ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`},1000);
