@@ -7,6 +7,10 @@
 <meta name="theme-color" content="#000">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vertraging">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.4 system-ui,sans-serif;overflow:hidden}
@@ -41,19 +45,20 @@
 
 <div id="menu"><div class="box">
   <h1>Vertraagd beeld</h1>
-  <p>Kies een code (bv. VNK1) en gebruik dezelfde code op beide toestellen, op dezelfde wifi.</p>
-  <input id="room" maxlength="8" placeholder="CODE" value="">
+  <p>Kies een code van minstens 4 tekens (bv. VNKD1) en gebruik dezelfde code op beide toestellen, op dezelfde wifi.</p>
+  <input id="room" maxlength="12" placeholder="CODE" value="">
   <button id="btnScreen">Dit is het scherm (iPad)</button>
   <button id="btnCam" class="alt">Dit is de camera (telefoon)</button>
   <button id="btnLocal" class="alt">Camera en scherm op één toestel</button>
   <button id="btnPlay" class="alt">Opname bekijken</button>
+  <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van telefoon naar iPad over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
   <input type="file" id="playFile" accept="video/*" hidden>
-  <details id="cfg"><summary style="color:#aaa;cursor:pointer">Verbinding instellen (Supabase, eenmalig per toestel)</summary>
+  <details id="cfg"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
     <div style="display:grid;gap:8px;margin-top:10px">
       <input id="cfgUrl" placeholder="https://xxxx.supabase.co" style="font-size:14px;letter-spacing:0;text-transform:none">
       <input id="cfgKey" placeholder="anon public key" style="font-size:14px;letter-spacing:0;text-transform:none">
       <button id="cfgSave" class="alt">Bewaar</button>
-      <p style="font-size:12px">Supabase → Project Settings → API. Alleen nodig voor telefoon → iPad; op beide toestellen invullen.</p>
+      <p style="font-size:12px">Standaard staat de verbinding al ingesteld. Alleen wijzigen als je een eigen Supabase-project gebruikt; leeg laten = standaard.</p>
     </div></details>
 </div></div>
 
@@ -70,13 +75,17 @@
   <button id="mirror">Spiegel</button>
   <button id="fill">Vullen</button>
   <button id="fs">Fullscreen</button>
+  <button id="stopAll">■ Stop</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 // ====== VUL IN: Supabase project (Settings → API). Alleen nodig voor telefoon → iPad. ======
-const SUPABASE_URL = localStorage.getItem('vt:url') || '';
-const SUPABASE_ANON_KEY = localStorage.getItem('vt:key') || '';
+// Standaardverbinding (Supabase-project Scouting, anon key is publiek). Overschrijfbaar via 'Verbinding instellen'.
+const DEFAULT_URL = 'https://mhxfhxnnrmtwdgkwlbtg.supabase.co';
+const DEFAULT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1oeGZoeG5ucm10d2Rna3dsYnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0NTQ0NTksImV4cCI6MjEwNTAzMDQ1OX0.Ii50DmTvio1ej1ZDAtMm5Z6R9zuD-_HyHv6BqCwf4ok';
+const SUPABASE_URL = localStorage.getItem('vt:url') || DEFAULT_URL;
+const SUPABASE_ANON_KEY = localStorage.getItem('vt:key') || DEFAULT_KEY;
 // ==========================================================================================
 
 const $=id=>document.getElementById(id);
@@ -91,6 +100,16 @@ $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Verder':'P
 $('mirror').onclick=()=>{mirror=!mirror;$('mirror').classList.toggle('on',mirror)};
 $('fill').onclick=()=>{document.body.classList.toggle('fill');const on=document.body.classList.contains('fill');$('fill').classList.toggle('on',on);localStorage.setItem('vt:fill',on?'1':'')};
 if(localStorage.getItem('vt:fill')){document.body.classList.add('fill');$('fill').classList.add('on')}
+$('stopAll').onclick=async()=>{
+  if(recorder){if(!confirm('De opname loopt nog. Stoppen en bewaren?'))return;stopRec();await new Promise(r=>setTimeout(r,600))}
+  if(timer){clearInterval(timer);timer=null}frames=[];
+  if(pc){pc.close();pc=null}if(channel){try{channel.unsubscribe()}catch(e){}channel=null}
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  $('camPreview').srcObject=null;$('camPreview').style.display='none';$('out').style.display='block';ctx.clearRect(0,0,out.width,out.height);
+  $('bar').classList.add('hidden');$('status').classList.add('hidden');$('menu').classList.remove('hidden');
+  $('cam').classList.add('hidden');$('rec').classList.add('hidden');$('delayWrap').classList.remove('hidden');$('mirror').classList.remove('hidden');$('pause').classList.remove('hidden');
+  paused=false;$('pause').textContent='Pauze';$('pause').classList.remove('on');mode=null;
+};
 $('fs').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{})};
 $('cam').onclick=()=>{if(recorder){alert('Stop eerst de opname.');return}facing=facing==='environment'?'user':'environment';startCamera().then(()=>{if(pc)renegotiate()})};
 
@@ -117,8 +136,8 @@ function stopRec(){if(recorder&&recorder.state!=='inactive')recorder.stop()}
 window.addEventListener('beforeunload',e=>{if(recorder){e.preventDefault();e.returnValue=''}});
 $('room').value=localStorage.getItem('vt:room')||'';
 $('cfgUrl').value=SUPABASE_URL;$('cfgKey').value=SUPABASE_ANON_KEY;
-if(!SUPABASE_URL||!SUPABASE_ANON_KEY)$('cfg').open=true;
-$('cfgSave').onclick=()=>{localStorage.setItem('vt:url',$('cfgUrl').value.trim());localStorage.setItem('vt:key',$('cfgKey').value.trim());location.reload()};
+
+$('cfgSave').onclick=()=>{const u=$('cfgUrl').value.trim(),k=$('cfgKey').value.trim();if(u)localStorage.setItem('vt:url',u);else localStorage.removeItem('vt:url');if(k)localStorage.setItem('vt:key',k);else localStorage.removeItem('vt:key');location.reload()};
 
 $('btnLocal').onclick=async()=>{mode='local';showUi();$('cam').classList.remove('hidden');$('rec').classList.remove('hidden');await startCamera();startBuffer(video)};
 $('btnCam').onclick=async()=>{if(!needRoom())return;mode='cam';showUi();$('cam').classList.remove('hidden');$('rec').classList.remove('hidden');$('delayWrap').classList.add('hidden');$('mirror').classList.add('hidden');$('pause').classList.add('hidden');
@@ -138,7 +157,7 @@ $('pbFs').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();e
 $('pbBack').onclick=()=>{pb.pause();pb.removeAttribute('src');pb.style.display='none';$('pbar').classList.add('hidden');$('status').classList.add('hidden');$('menu').classList.remove('hidden');$('playFile').value=''};
 pb.ontimeupdate=()=>setStatus(`${Math.floor(pb.currentTime/60)}:${String(Math.floor(pb.currentTime%60)).padStart(2,'0')} / ${Math.floor(pb.duration/60)}:${String(Math.floor(pb.duration%60)).padStart(2,'0')}`,false);
 
-function needRoom(){room=$('room').value.trim().toUpperCase();if(!room){alert('Vul eerst een code in.');return false}if(!SUPABASE_URL||!SUPABASE_ANON_KEY){alert('Vul eerst de verbinding in (Supabase URL en key).');$('cfg').open=true;return false}localStorage.setItem('vt:room',room);return true}
+function needRoom(){room=$('room').value.trim().toUpperCase();if(room.length<4){alert('Kies een code van minstens 4 tekens.');return false}if(!SUPABASE_URL||!SUPABASE_ANON_KEY){alert('Vul eerst de verbinding in (Supabase URL en key).');$('cfg').open=true;return false}localStorage.setItem('vt:room',room);return true}
 function showUi(){$('menu').classList.add('hidden');$('bar').classList.remove('hidden');$('status').classList.remove('hidden')}
 function setStatus(t,live){$('status').textContent=t;$('status').className=live?'live':''}
 
@@ -206,6 +225,7 @@ async function onSignal(m){
     else if(m.type==='ice'&&pc){try{await pc.addIceCandidate(m.cand)}catch(e){}}
   }
 }
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
 </html>
