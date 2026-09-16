@@ -58,7 +58,7 @@
   <button id="btnLocal" class="alt">Camera en scherm op één toestel</button>
   <button id="btnPlay" class="alt">Opname bekijken</button>
   <button id="btnHelp" class="alt" style="font-size:15px;padding:10px 16px">Handleiding</button>
-  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 23</p>
+  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 24</p>
   <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
   <input type="file" id="playFile" accept="video/*" hidden>
   <details id="cfg" class="hidden"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
@@ -80,6 +80,8 @@
 
     <h3 style="color:#fff">Eén toestel filmt, één of meer tonen</h3>
     <ol><li>Zet beide toestellen op <b>dezelfde wifi</b>, of zet de hotspot van de telefoon aan en verbind de tablet daarmee.</li><li>Op het toestel dat toont (tablet, laptop of tweede telefoon): typ een <b>code</b> (min. 4 tekens, bv. VNKD1) → <b>Dit toestel is het scherm</b>.</li><li>Op het toestel dat filmt (meestal de telefoon): dezelfde code → <b>Dit toestel is de camera</b>. Liggend op het statief.</li><li>Na enkele seconden "Verbonden"; de vertraging stel je in op het toestel dat toont.</li></ol>
+    <h3 style="color:#fff">Meerdere camera's</h3>
+    <p>Meer telefoons als camera op één scherm kan ook: elk toestel dezelfde code en <b>Dit toestel is de camera</b>. Het scherm toont ze als raster (2 naast elkaar, of 2×2), allemaal met dezelfde vertraging, in iets lagere resolutie. Handig om een actie van voor én van opzij tegelijk terug te zien. Tot vier camera's; op een oudere tablet liever twee.</p>
     <h3 style="color:#fff">Meerdere schermen</h3>
     <p>Meer schermen op dezelfde camera kan: geef elk scherm-toestel dezelfde code en tik overal <b>Dit toestel is het scherm</b>. Elk scherm kiest zijn eigen vertraging, bv. een tablet bij het net op 8 s voor de speler en een laptop bij de bank op 3 s voor de coach. De camera toont hoeveel schermen verbonden zijn. Tot drie à vier schermen gaat vlot over wifi; de volgorde van starten maakt niet uit.</p>
     <p>Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi. Alleen om elkaar te vinden is kort internet nodig (via de hotspot vanzelf). Bereik: 10–15 m in open ruimte.</p>
@@ -134,8 +136,8 @@ const out=$('out'),ctx=out.getContext('2d');
 const video=document.createElement('video');video.muted=true;video.playsInline=true;video.autoplay=true;video.setAttribute('playsinline','');video.setAttribute('muted','');
 video.style.cssText='position:fixed;left:0;top:0;width:4px;height:4px;opacity:0.02;pointer-events:none;z-index:0';document.body.appendChild(video);
 let stream=null,facing='environment',delay=10,paused=false,mirror=false,mode=null,rot=0;
-const FPS=25;let frames=[],w=640,h=360,timer=null;
-let pc=null,channel=null,room='';const SID=Math.random().toString(36).slice(2,8);const pcs={};   // camera: verbinding per scherm
+const FPS=25;
+let pc=null,channel=null,room='';const SID=Math.random().toString(36).slice(2,8);const CID=SID;const pcs={};   // camera: verbinding per scherm
 
 $('delay').oninput=e=>{delay=+e.target.value;$('delayVal').textContent=delay+' s'};
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Verder':'Pauze';$('pause').classList.toggle('on',paused)};
@@ -149,8 +151,8 @@ $('fill').onclick=()=>{document.body.classList.toggle('fill');const on=document.
 if(localStorage.getItem('vt:fill')){document.body.classList.add('fill');$('fill').classList.add('on')}
 $('stopAll').onclick=async()=>{
   if(recorder){if(!confirm('De opname loopt nog. Stoppen en bewaren?'))return;stopRec();await new Promise(r=>setTimeout(r,600))}
-  if(timer){clearInterval(timer);timer=null}frames=[];
-  clearInterval(wantTimer);if(pc){pc.close();pc=null}Object.values(pcs).forEach(p=>p.close());for(const k in pcs)delete pcs[k];if(channel){try{channel.unsubscribe()}catch(e){}channel=null}
+  clearCams();
+  clearInterval(wantTimer);if(pc){pc.close();pc=null}Object.values(pcs).forEach(p=>p.close());for(const k in pcs)delete pcs[k];Object.values(spcs).forEach(p=>p.close());for(const k in spcs)delete spcs[k];clearCams();if(channel){try{channel.unsubscribe()}catch(e){}channel=null}
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   $('camPreview').srcObject=null;$('camPreview').style.display='none';$('pip').style.display='none';$('pip').srcObject=null;$('out').style.display='block';ctx.clearRect(0,0,out.width,out.height);
   $('bar').classList.add('hidden');$('status').classList.add('hidden');$('menu').classList.remove('hidden');
@@ -242,39 +244,60 @@ async function startCamera(){
   video.srcObject=stream;await video.play();
 }
 
-// ---------- vertragingsbuffer (op het scherm-toestel)
-let lastSrc=null;let sizedFlag=false;const sizedOK=()=>sizedFlag;
-function startBuffer(src){
-  lastSrc=src;frames=[];
-  // vaste canvasgrootte op basis van de beeldverhouding; latere resolutiewisselingen (WebRTC schaalt op) veranderen niets aan de weergave
-  let sized=false;sizedFlag=false;const t0=performance.now();
+// ---------- vertragingsbuffer per camera (meerdere camera's = raster, lagere resolutie)
+const cams={};let camOrder=[];let lastSrc=null;let sizedFlag=false;const sizedOK=()=>sizedFlag;
+let w=1280,h=720;                                            // uitvoercanvas
+function camCount(){return camOrder.length}
+function bufRes(){return camCount()>1?[640,360]:[960,540]}     // bufferresolutie per camera
+function addCam(id,src,label){
+  const cam={id,src,label,frames:[],bw:0,bh:0,sized:false,t0:performance.now(),timer:null};
+  cams[id]=cam;if(!camOrder.includes(id))camOrder.push(id);lastSrc=src;
   const dims=()=>{let vw=src.videoWidth,vh=src.videoHeight;if((!vw||!vh)&&src.srcObject){const tr=src.srcObject.getVideoTracks()[0];const st=tr&&tr.getSettings?tr.getSettings():{};vw=st.width||0;vh=st.height||0}
-    if((!vw||!vh)&&performance.now()-t0>1500){vw=1280;vh=720}return[vw,vh]};
-  const size=()=>{const [vw,vh]=dims();if(!vw||!vh)return;const ar=vw/vh;const landscape=ar>=1;w=landscape?960:Math.round(960*ar);h=landscape?Math.round(960/ar):960;applyRot();sized=true;sizedFlag=true};
-  size();src.addEventListener('loadedmetadata',()=>{if(!sized)size()});
-  src.addEventListener('resize',()=>{if(!sized)size();else{const vw=src.videoWidth,vh=src.videoHeight;if(vw&&vh&&Math.abs(vw/vh-w/h)>0.05){frames=[];size()}}});
+    if((!vw||!vh)&&performance.now()-cam.t0>1500){vw=1280;vh=720}return[vw,vh]};
+  cam.size=()=>{const [vw,vh]=dims();if(!vw||!vh)return;const [mw,mh]=bufRes();const ar=vw/vh;if(ar>=1){cam.bw=mw;cam.bh=Math.round(mw/ar)}else{cam.bh=mh*2;cam.bw=Math.round(cam.bh*ar)}cam.sized=true;sizedFlag=true;layout()};
+  cam.size();src.addEventListener('loadedmetadata',()=>{if(!cam.sized)cam.size()});
+  src.addEventListener('resize',()=>{const vw=src.videoWidth,vh=src.videoHeight;if(!cam.sized)cam.size();else if(vw&&vh&&Math.abs(vw/vh-cam.bw/cam.bh)>0.05){cam.frames=[];cam.size()}});
   src.play().catch(()=>{});
-  if(timer)clearInterval(timer);
-  timer=setInterval(()=>{
-    if(!sized)size();if(paused||!sized||src.readyState<2){if(src.paused)src.play().catch(()=>{});return}
-    const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(src,0,0,w,h);
-    frames.push({t:performance.now(),c});
-    const maxAge=(delay+1)*1000;while(frames.length&&frames[0].t<performance.now()-maxAge)frames.shift();
-  },1000/FPS);
-  requestAnimationFrame(draw);
+  cam.timer=setInterval(()=>{
+    if(!cam.sized)cam.size();if(paused||!cam.sized||src.readyState<2){if(src.paused)src.play().catch(()=>{});return}
+    const c=document.createElement('canvas');c.width=cam.bw;c.height=cam.bh;c.getContext('2d').drawImage(src,0,0,cam.bw,cam.bh);
+    cam.frames.push({t:performance.now(),c});const maxAge=(delay+1)*1000;while(cam.frames.length&&cam.frames[0].t<performance.now()-maxAge)cam.frames.shift();
+  },1000/(camCount()>1?20:FPS));
+  if(!drawing){drawing=true;requestAnimationFrame(draw)}
 }
+function removeCam(id){const cam=cams[id];if(!cam)return;clearInterval(cam.timer);delete cams[id];camOrder=camOrder.filter(x=>x!==id);layout()}
+function clearCams(){camOrder.slice().forEach(removeCam);sizedFlag=false}
+// layout van het uitvoercanvas: één camera = zijn eigen verhouding; meerdere = 16:9 raster
+function layout(){
+  const n=camCount();
+  if(n<=1){const cam=cams[camOrder[0]];if(cam&&cam.sized){w=cam.bw;h=cam.bh}else{w=960;h=540}}
+  else{w=1280;h=720}
+  applyRot();
+}
+function cells(){const n=camCount();if(n<=1)return[[0,0,w,h]];const cols=2,rows=n<=2?1:2;const cw=w/cols,ch=h/rows;return camOrder.map((_,i)=>[(i%cols)*cw,Math.floor(i/cols)*ch,cw,ch])}
+let drawing=false;
 function draw(){
-  const now=performance.now(),target=now-delay*1000;
-  let f=null;for(const x of frames){if(x.t<=target)f=x;else break}
-  if(f){drawRotated(f.c);setStatus(`Vertraging ${delay} s`,false)}
-  else{const have=frames.length?(now-frames[0].t)/1000:0;
-    const src=lastSrc;const diag=src&&(src.readyState<2||src.paused)?` · camera geeft nog geen beeld (rs ${src.readyState}${src.paused?', gepauzeerd':''}, ${src.videoWidth}×${src.videoHeight})`:'';
-    setStatus(`Buffer vult… ${Math.min(delay,have).toFixed(0)} / ${delay} s${diag} · je ziet nu live beeld`,true);
-    if(src&&src.readyState>=2&&sizedOK()){drawRotated(src);const H=out.height,W=out.width;ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(0,H-36,W,36);ctx.fillStyle='#fff';ctx.font='700 18px system-ui';ctx.fillText(`LIVE · vertraagd beeld over ${Math.max(0,delay-have).toFixed(0)} s`,12,H-12)}
-    else{ctx.fillStyle='#000';ctx.fillRect(0,0,out.width,out.height)}}
+  const now=performance.now(),target=now-delay*1000;const n=camCount();
+  if(!n){drawing=false;return}
+  const rects=cells();let filling=0,haveMin=Infinity;const W=out.width,H=out.height;
+  const layer=drawLayer(w,h);const lc=layer.getContext('2d');lc.fillStyle='#000';lc.fillRect(0,0,w,h);
+  camOrder.forEach((id,i)=>{const cam=cams[id];const [x,y,cw,ch]=rects[i];
+    let f=null;for(const fr of cam.frames){if(fr.t<=target)f=fr;else break}
+    const fit=(iw,ih)=>{const s=Math.min(cw/iw,ch/ih);const dw=iw*s,dh=ih*s;return[x+(cw-dw)/2,y+(ch-dh)/2,dw,dh]};
+    if(f){const [dx,dy,dw,dh]=fit(f.c.width,f.c.height);lc.drawImage(f.c,dx,dy,dw,dh)}
+    else{filling++;const have=cam.frames.length?(now-cam.frames[0].t)/1000:0;haveMin=Math.min(haveMin,have);
+      if(cam.src.readyState>=2&&cam.sized){const [dx,dy,dw,dh]=fit(cam.bw,cam.bh);lc.drawImage(cam.src,dx,dy,dw,dh);lc.fillStyle='rgba(0,0,0,.5)';lc.fillRect(x,y+ch-30,cw,30);lc.fillStyle='#fff';lc.font='700 16px system-ui';lc.fillText(`LIVE · vertraagd over ${Math.max(0,delay-have).toFixed(0)} s`,x+10,y+ch-9)}}
+    if(n>1){lc.fillStyle='rgba(0,0,0,.5)';lc.fillRect(x+cw-110,y,110,24);lc.fillStyle='#fff';lc.font='700 13px system-ui';lc.fillText(cam.label||('Camera '+(i+1)),x+cw-102,y+17);lc.strokeStyle='#222';lc.strokeRect(x,y,cw,ch)}
+  });
+  ctx.clearRect(0,0,W,H);drawRotated(layer);
+  if(filling){const cam=cams[camOrder[0]];const src=cam.src;const diag=src&&(src.readyState<2||src.paused)?` · camera geeft nog geen beeld (rs ${src.readyState})`:'';setStatus(`Buffer vult… ${Math.min(delay,haveMin===Infinity?0:haveMin).toFixed(0)} / ${delay} s${diag} · je ziet nu live beeld`,true)}
+  else setStatus(`Vertraging ${delay} s${n>1?' · '+n+" camera's":''}`,false);
   requestAnimationFrame(draw);
 }
-document.addEventListener('visibilitychange',()=>{if(mode==='local'||mode==='screen'){if(document.hidden)paused=true;else{paused=false;frames=[]}}});
+let _layer=null;function drawLayer(lw,lh){if(!_layer||_layer.width!==lw||_layer.height!==lh){_layer=document.createElement('canvas');_layer.width=lw;_layer.height=lh}return _layer}
+// compat: één-toestel-stand
+function startBuffer(src){clearCams();addCam('local',src,'')}
+document.addEventListener('visibilitychange',()=>{if(mode==='local'||mode==='screen'){if(document.hidden)paused=true;else{paused=false;Object.values(cams).forEach(c=>c.frames=[])}}});
 
 // ---------- verbinding telefoon -> tablet (WebRTC, signalering via Supabase Realtime)
 const ICE={iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]};
@@ -289,22 +312,24 @@ function joinRoom(){
   });
 }
 let wantTimer=null;
-const send=msg=>channel.send({type:'broadcast',event:'sig',payload:{...msg,from:mode,sid:mode==='screen'?SID:undefined}});
+const send=msg=>channel.send({type:'broadcast',event:'sig',payload:{...msg,from:mode,sid:mode==='screen'?SID:undefined,cid:mode==='cam'?CID:undefined}});
 function makePc(onTrackFn,sendFn){
   const p=new RTCPeerConnection(ICE);
   p.onicecandidate=e=>{if(e.candidate)sendFn({type:'ice',cand:e.candidate})};
   if(onTrackFn)p.ontrack=onTrackFn;
   return p;
 }
-// scherm: één verbinding
-function newPc(){
-  if(pc)pc.close();
-  pc=makePc(e=>{stream=e.streams[0];const v=document.createElement('video');v.muted=true;v.playsInline=true;v.autoplay=true;v.srcObject=stream;v.play().then(()=>startBuffer(v))},send);
-  pc.onconnectionstatechange=()=>{
-    if(pc.connectionState==='connected'){setStatus('Verbonden – buffer vult…',true);clearInterval(wantTimer)}
-    if(['failed','disconnected'].includes(pc.connectionState)){setStatus('Verbinding verbroken, opnieuw proberen…',true);clearInterval(wantTimer);wantTimer=setInterval(()=>{if(!pc||!['connected','connecting'].includes(pc.connectionState))send({type:'want'})},3000)}
+// scherm: verbinding per camera (cid)
+const spcs={};
+function screenPcFor(cid){
+  if(spcs[cid])spcs[cid].close();
+  const sendTo=msg=>send({...msg,cam:cid});
+  const p=makePc(e=>{const v=document.createElement('video');v.muted=true;v.playsInline=true;v.autoplay=true;v.srcObject=e.streams[0];v.play().then(()=>addCam(cid,v,''))},sendTo);
+  p.onconnectionstatechange=()=>{
+    if(p.connectionState==='connected'){clearInterval(wantTimer);wantTimer=setInterval(()=>send({type:'want'}),4000)}   // blijf zacht polsen voor camera's die later starten
+    if(['failed','closed','disconnected'].includes(p.connectionState)){if(spcs[cid]===p){delete spcs[cid];removeCam(cid)}setStatus('Camera weggevallen, wacht…',true)}
   };
-  return pc;
+  spcs[cid]=p;return p;
 }
 // camera: verbinding per scherm (sid)
 function screensStatus(){const n=Object.values(pcs).filter(p=>p.connectionState==='connected').length;setStatus(`CAMERA · live voorbeeld · ${n} scherm${n===1?'':'en'} verbonden · code ${room}`,true)}
@@ -321,14 +346,16 @@ async function onSignal(m){
   if(m.from===mode)return;
   if(mode==='cam'){
     const sid=m.sid;if(!sid)return;
+    if(m.cam&&m.cam!==CID)return;   // antwoord voor een andere camera
     if(m.type==='want'){if(!stream)return;const p=pcs[sid];if(p&&['connected','connecting'].includes(p.connectionState))return;await offerTo(sid)}
     else if(m.type==='answer'&&pcs[sid]){await pcs[sid].setRemoteDescription(m.sdp)}
     else if(m.type==='ice'&&pcs[sid]){try{await pcs[sid].addIceCandidate(m.cand)}catch(e){}}
   }else if(mode==='screen'){
     if(m.type==='ready'){send({type:'want'});return}
     if(m.to&&m.to!==SID)return;   // niet voor dit scherm
-    if(m.type==='offer'){newPc();await pc.setRemoteDescription(m.sdp);const a=await pc.createAnswer();await pc.setLocalDescription(a);send({type:'answer',sdp:a})}
-    else if(m.type==='ice'&&pc){try{await pc.addIceCandidate(m.cand)}catch(e){}}
+    const cid=m.cid||'cam';
+    if(m.type==='offer'){const p=screenPcFor(cid);await p.setRemoteDescription(m.sdp);const a=await p.createAnswer();await p.setLocalDescription(a);send({type:'answer',sdp:a,cam:cid})}
+    else if(m.type==='ice'&&spcs[cid]){try{await spcs[cid].addIceCandidate(m.cand)}catch(e){}}
   }
 }
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
