@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Vertraagd beeld</title>
 <meta name="theme-color" content="#000">
 <meta name="mobile-web-app-capable" content="yes">
@@ -12,7 +12,8 @@
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
-  *{box-sizing:border-box}
+  *{box-sizing:border-box;touch-action:manipulation}
+  button{-webkit-user-select:none;user-select:none}
   html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.4 system-ui,sans-serif;overflow:hidden}
   #out{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
   body.fill #out,body.fill #camPreview{object-fit:cover}
@@ -64,6 +65,8 @@
 
 <video id="playback" playsinline style="position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:none"></video>
 <div class="bar hidden" id="pbar">
+  <label style="flex:1 1 100%"><span id="pbTime" style="min-width:90px;font-variant-numeric:tabular-nums">0:00 / 0:00</span><input type="range" id="pbSeek" min="0" max="1000" value="0" style="flex:1"></label>
+  <button id="pbStart">⏮ Begin</button>
   <button id="pb5">−5s</button><button id="pbf">−1 beeld</button><button id="pbPlay">▶︎ / ⏸</button><button id="pff">+1 beeld</button><button id="pf5">+5s</button>
   <button id="pbSpeed">1×</button><button id="pbMirror">Spiegel</button><button id="pbFs">Fullscreen</button><button id="pbBack">Terug</button>
 </div>
@@ -121,16 +124,21 @@ function startRec(){
   const mime=['video/mp4','video/webm;codecs=vp9','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';
   try{recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:4_000_000})}catch(e){alert('Opnemen wordt niet ondersteund in deze browser.');return}
   chunks=[];recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
-  recorder.onstop=()=>{
+  recorder.onstop=async()=>{
     const blob=new Blob(chunks,{type:recorder.mimeType});const ext=recorder.mimeType.includes('mp4')?'mp4':'webm';
     const d=new Date(),pad=n=>String(n).padStart(2,'0');
     const name=`opname-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.${ext}`;
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
     recorder=null;chunks=[];clearInterval(recTimer);$('rec').textContent='● Opnemen';$('rec').classList.remove('on');
-    const standalone=window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;const ios=/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&'ontouchend' in document;
-    setStatus(`Opname bewaard in Downloads: ${name} (${(blob.size/1048576).toFixed(0)} MB)`,false);
-    if(ios&&standalone)alert('Op iPad bewaart een app vanaf het beginscherm geen bestanden. Open de app in Safari zelf om op te nemen; het bestand komt dan in Bestanden → Downloads.');
-    else if(ios)alert('Opname bewaard. Je vindt ze in de app Bestanden → Downloads.');
+    const ios=/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&'ontouchend' in document;
+    const file=new File([blob],name,{type:blob.type});
+    if(ios&&navigator.canShare&&navigator.canShare({files:[file]})){
+      setStatus(`Opname klaar (${(blob.size/1048576).toFixed(0)} MB) — kies "Bewaar video" of "Bewaar in Bestanden"`,true);
+      try{await navigator.share({files:[file],title:name})}catch(e){/* geannuleerd */}
+      setStatus(`Opname ${name} gedeeld/bewaard`,false);
+    }else{
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+      setStatus(`Opname bewaard in Downloads: ${name} (${(blob.size/1048576).toFixed(0)} MB)`,false);
+    }
   };
   recorder.start(1000);recStart=Date.now();$('rec').classList.add('on');
   recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);$('rec').textContent=`■ Stop ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`},1000);
@@ -153,13 +161,17 @@ const pb=$('playback');const speeds=[1,0.5,0.25];let spi=0;
 $('btnPlay').onclick=()=>$('playFile').click();
 $('playFile').onchange=e=>{const f=e.target.files[0];if(!f)return;pb.src=URL.createObjectURL(f);pb.style.display='block';$('menu').classList.add('hidden');$('pbar').classList.remove('hidden');$('status').classList.remove('hidden');setStatus(f.name,false);pb.play().catch(()=>{})};
 $('pbPlay').onclick=()=>pb.paused?pb.play():pb.pause();
+$('pbStart').onclick=()=>{pb.pause();pb.currentTime=0};
+let seeking=false;$('pbSeek').oninput=()=>{seeking=true;if(pb.duration)pb.currentTime=pb.duration*$('pbSeek').value/1000};$('pbSeek').onchange=()=>{seeking=false};
 $('pb5').onclick=()=>{pb.currentTime=Math.max(0,pb.currentTime-5)};$('pf5').onclick=()=>{pb.currentTime+=5};
 $('pbf').onclick=()=>{pb.pause();pb.currentTime=Math.max(0,pb.currentTime-1/25)};$('pff').onclick=()=>{pb.pause();pb.currentTime+=1/25};
 $('pbSpeed').onclick=()=>{spi=(spi+1)%speeds.length;pb.playbackRate=speeds[spi];$('pbSpeed').textContent=speeds[spi]+'×'};
 $('pbMirror').onclick=()=>{pb.style.transform=pb.style.transform?'':'scaleX(-1)'};
 $('pbFs').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{})};
 $('pbBack').onclick=()=>{pb.pause();pb.removeAttribute('src');pb.style.display='none';$('pbar').classList.add('hidden');$('status').classList.add('hidden');$('menu').classList.remove('hidden');$('playFile').value=''};
-pb.ontimeupdate=()=>setStatus(`${Math.floor(pb.currentTime/60)}:${String(Math.floor(pb.currentTime%60)).padStart(2,'0')} / ${Math.floor(pb.duration/60)}:${String(Math.floor(pb.duration%60)).padStart(2,'0')}`,false);
+const fmtT=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
+pb.ontimeupdate=()=>{const dur=isFinite(pb.duration)?pb.duration:0;$('pbTime').textContent=`${fmtT(pb.currentTime)} / ${fmtT(dur)}`;if(!seeking&&dur)$('pbSeek').value=Math.round(1000*pb.currentTime/dur);setStatus(fmtT(pb.currentTime),false)};
+pb.ondurationchange=()=>{if(!isFinite(pb.duration)){pb.currentTime=1e9;pb.addEventListener('seeked',()=>{pb.currentTime=0},{once:true})}};
 
 function needRoom(){room=$('room').value.trim().toUpperCase();if(room.length<4){alert('Kies een code van minstens 4 tekens.');return false}if(!SUPABASE_URL||!SUPABASE_ANON_KEY){alert('Vul eerst de verbinding in (Supabase URL en key).');$('cfg').open=true;return false}localStorage.setItem('vt:room',room);return true}
 function showUi(){$('menu').classList.add('hidden');$('bar').classList.remove('hidden');$('status').classList.remove('hidden')}
