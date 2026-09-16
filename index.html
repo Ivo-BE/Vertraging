@@ -58,7 +58,7 @@
   <button id="btnLocal" class="alt">Camera en scherm op één toestel</button>
   <button id="btnPlay" class="alt">Opname bekijken</button>
   <button id="btnHelp" class="alt" style="font-size:15px;padding:10px 16px">Handleiding</button>
-  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 19</p>
+  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 20</p>
   <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
   <input type="file" id="playFile" accept="video/*" hidden>
   <details id="cfg" class="hidden"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
@@ -83,13 +83,13 @@
     <p>Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi. Alleen om elkaar te vinden is kort internet nodig (via de hotspot vanzelf). Bereik: 10–15 m in open ruimte.</p>
 
     <h3 style="color:#fff">Knoppen</h3>
-    <ul><li><b>Vertraging</b>: schuifregelaar, direct van kracht.</li><li><b>Camera ⇄</b>: voor- of achtercamera.</li><li><b>● Opnemen / ■ Stop</b>: neemt het live beeld op. Bewaard in Downloads (Android, laptop) of via het deelmenu (iPad/iPhone: "Bewaar video" in Foto's of "Bewaar in Bestanden").</li><li><b>Pauze</b>: bevriest het beeld om iets aan te wijzen.</li><li><b>Spiegel</b>: spiegelt het beeld.</li><li><b>Vullen</b>: schermvullend, snijdt randen weg als de verhoudingen niet kloppen.</li><li><b>Fullscreen</b>.</li><li><b>■ Stop</b>: stopt camera en verbinding, terug naar het startscherm.</li><li><b>▾ knoppen</b>: klapt de balk in; tik op het beeld om ze terug te halen.</li></ul>
+    <ul><li><b>Vertraging</b>: schuifregelaar, direct van kracht.</li><li><b>Camera ⇄</b>: voor- of achtercamera.</li><li><b>● Opnemen / ■ Stop</b>: neemt het live beeld op. Bewaard in Downloads (Android, laptop) of via het deelmenu (iPad/iPhone: "Bewaar video" in Foto's of "Bewaar in Bestanden").</li><li><b>Pauze</b>: bevriest het beeld om iets aan te wijzen.</li><li><b>Spiegel</b>: spiegelt het beeld.</li><li><b>↻ Draai</b>: draait het beeld in stappen van 90°, bv. als de telefoon met schermvergrendeling liggend filmt.</li><li><b>Vullen</b>: schermvullend, snijdt randen weg als de verhoudingen niet kloppen.</li><li><b>Fullscreen</b>.</li><li><b>■ Stop</b>: stopt camera en verbinding, terug naar het startscherm.</li><li><b>▾ knoppen</b>: klapt de balk in; tik op het beeld om ze terug te halen.</li></ul>
 
     <h3 style="color:#fff">Opname bekijken</h3>
     <p>Startscherm → <b>Opname bekijken</b> → kies een video (Foto's of Bestanden). Voortgangsbalk om te spoelen, <b>⏮ Begin</b>, −5s/+5s, <b>−1 beeld / +1 beeld</b> om beeldje per beeldje te gaan, snelheid 1× / ½× / ¼×, Spiegel, Fullscreen. <b>Terug</b> sluit de video.</p>
 
     <h3 style="color:#fff">Tips</h3>
-    <ul><li>Zet <b>automatisch vergrendelen uit</b> (Instellingen → Scherm) en de lader erin; camera + hotspot + opname trekken de batterij snel leeg.</li><li>Laad de app thuis één keer na een update; daarna werkt "één toestel" en "opname bekijken" ook zonder bereik.</li><li>Camera-toestel liggend = breedbeeld op het scherm. Staand filmen geeft zwarte randen.</li><li>Op een iPad opnemen: liever in Safari dan vanaf het beginscherm-icoon; dan is bewaren betrouwbaarder.</li><li>Geen "Verbonden"? Controleer de code op beide toestellen, de wifi/hotspot, en of de telefoon nog internet heeft.</li></ul>
+    <ul><li>Zet <b>automatisch vergrendelen uit</b> (Instellingen → Scherm) en de lader erin; camera + hotspot + opname trekken de batterij snel leeg.</li><li>Laad de app thuis één keer na een update; daarna werkt "één toestel" en "opname bekijken" ook zonder bereik.</li><li>Camera-toestel liggend = breedbeeld op het scherm. Zet de <b>schermvergrendeling uit</b> en draai het toestel vóór je start; anders komt het beeld gedraaid aan (herstel met ↻ Draai).</li><li>Op een iPad opnemen: liever in Safari dan vanaf het beginscherm-icoon; dan is bewaren betrouwbaarder.</li><li>Geen "Verbonden"? Controleer de code op beide toestellen, de wifi/hotspot, en of de telefoon nog internet heeft.</li></ul>
 
     <h3 style="color:#fff">Privacy</h3>
     <p>Er wordt niets bewaard in de cloud. Beeld gaat van toestel naar toestel; opnames staan alleen op het toestel waar je op Opnemen tikte. Vraag toestemming aan spelers (en bij jeugd aan ouders) voor je opneemt.</p>
@@ -111,6 +111,7 @@
   <button id="rec" class="hidden">● Opnemen</button>
   <button id="pause">Pauze</button>
   <button id="mirror">Spiegel</button>
+  <button id="rot">↻ Draai</button>
   <button id="fill">Vullen</button>
   <button id="fs">Fullscreen</button>
   <button id="stopAll">■ Stop</button>
@@ -130,13 +131,18 @@ const $=id=>document.getElementById(id);
 const out=$('out'),ctx=out.getContext('2d');
 const video=document.createElement('video');video.muted=true;video.playsInline=true;video.autoplay=true;video.setAttribute('playsinline','');video.setAttribute('muted','');
 video.style.cssText='position:fixed;left:0;top:0;width:4px;height:4px;opacity:0.02;pointer-events:none;z-index:0';document.body.appendChild(video);
-let stream=null,facing='environment',delay=10,paused=false,mirror=false,mode=null;
+let stream=null,facing='environment',delay=10,paused=false,mirror=false,mode=null,rot=0;
 const FPS=25;let frames=[],w=640,h=360,timer=null;
 let pc=null,channel=null,room='';
 
 $('delay').oninput=e=>{delay=+e.target.value;$('delayVal').textContent=delay+' s'};
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Verder':'Pauze';$('pause').classList.toggle('on',paused)};
 $('mirror').onclick=()=>{mirror=!mirror;$('mirror').classList.toggle('on',mirror)};
+$('rot').onclick=()=>{rot=(rot+90)%360;$('rot').textContent='↻ Draai'+(rot?' '+rot+'°':'');$('rot').classList.toggle('on',rot!==0);applyRot()};
+// canvas krijgt bij 90/270 de gedraaide afmetingen; tekenen gebeurt met een rotatie
+function applyRot(){if(rot%180){out.width=h;out.height=w}else{out.width=w;out.height=h}}
+function drawRotated(img){ctx.save();if(rot===90){ctx.translate(h,0);ctx.rotate(Math.PI/2)}else if(rot===180){ctx.translate(w,h);ctx.rotate(Math.PI)}else if(rot===270){ctx.translate(0,w);ctx.rotate(-Math.PI/2)}
+  if(mirror){ctx.translate(w,0);ctx.scale(-1,1)}ctx.drawImage(img,0,0,w,h);ctx.restore()}
 $('fill').onclick=()=>{document.body.classList.toggle('fill');const on=document.body.classList.contains('fill');$('fill').classList.toggle('on',on);localStorage.setItem('vt:fill',on?'1':'')};
 if(localStorage.getItem('vt:fill')){document.body.classList.add('fill');$('fill').classList.add('on')}
 $('stopAll').onclick=async()=>{
@@ -146,8 +152,8 @@ $('stopAll').onclick=async()=>{
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   $('camPreview').srcObject=null;$('camPreview').style.display='none';$('pip').style.display='none';$('pip').srcObject=null;$('out').style.display='block';ctx.clearRect(0,0,out.width,out.height);
   $('bar').classList.add('hidden');$('status').classList.add('hidden');$('menu').classList.remove('hidden');
-  $('cam').classList.add('hidden');$('rec').classList.add('hidden');$('delayWrap').classList.remove('hidden');$('mirror').classList.remove('hidden');$('pause').classList.remove('hidden');
-  paused=false;$('pause').textContent='Pauze';$('pause').classList.remove('on');mode=null;
+  $('cam').classList.add('hidden');$('rec').classList.add('hidden');$('delayWrap').classList.remove('hidden');$('mirror').classList.remove('hidden');$('pause').classList.remove('hidden');$('rot').classList.remove('hidden');
+  paused=false;$('pause').textContent='Pauze';$('pause').classList.remove('on');mode=null;rot=0;$('rot').textContent='↻ Draai';$('rot').classList.remove('on');
 };
 $('fs').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{})};
 let pipTimer=null;
@@ -192,7 +198,7 @@ $('cfgSave').onclick=()=>{const u=$('cfgUrl').value.trim(),k=$('cfgKey').value.t
 
 $('btnHelp').onclick=()=>$('help').classList.remove('hidden');$('helpClose').onclick=()=>$('help').classList.add('hidden');
 $('btnLocal').onclick=async()=>{mode='local';showUi();$('cam').classList.remove('hidden');$('rec').classList.remove('hidden');camLabel();await startCamera();startBuffer(video)};
-$('btnCam').onclick=async()=>{if(!needRoom())return;mode='cam';showUi();$('cam').classList.remove('hidden');$('rec').classList.remove('hidden');camLabel();$('delayWrap').classList.add('hidden');$('mirror').classList.add('hidden');$('pause').classList.add('hidden');
+$('btnCam').onclick=async()=>{if(!needRoom())return;mode='cam';showUi();$('cam').classList.remove('hidden');$('rec').classList.remove('hidden');camLabel();$('delayWrap').classList.add('hidden');$('mirror').classList.add('hidden');$('pause').classList.add('hidden');$('rot').classList.add('hidden');
   await startCamera();const cp=$('camPreview');cp.srcObject=stream;cp.style.display='block';cp.muted=true;cp.play().catch(()=>{});$('out').style.display='none';joinRoom()};
 $('btnScreen').onclick=()=>{if(!needRoom())return;mode='screen';showUi();$('rec').classList.remove('hidden');joinRoom();setStatus('Wacht op het camera-toestel met code '+room+'…',true)};
 
@@ -236,7 +242,7 @@ function startBuffer(src){
   let sized=false;sizedFlag=false;const t0=performance.now();
   const dims=()=>{let vw=src.videoWidth,vh=src.videoHeight;if((!vw||!vh)&&src.srcObject){const tr=src.srcObject.getVideoTracks()[0];const st=tr&&tr.getSettings?tr.getSettings():{};vw=st.width||0;vh=st.height||0}
     if((!vw||!vh)&&performance.now()-t0>1500){vw=1280;vh=720}return[vw,vh]};
-  const size=()=>{const [vw,vh]=dims();if(!vw||!vh)return;const ar=vw/vh;const landscape=ar>=1;w=landscape?960:Math.round(960*ar);h=landscape?Math.round(960/ar):960;out.width=w;out.height=h;sized=true;sizedFlag=true};
+  const size=()=>{const [vw,vh]=dims();if(!vw||!vh)return;const ar=vw/vh;const landscape=ar>=1;w=landscape?960:Math.round(960*ar);h=landscape?Math.round(960/ar):960;applyRot();sized=true;sizedFlag=true};
   size();src.addEventListener('loadedmetadata',()=>{if(!sized)size()});
   src.addEventListener('resize',()=>{if(!sized)size();else{const vw=src.videoWidth,vh=src.videoHeight;if(vw&&vh&&Math.abs(vw/vh-w/h)>0.05){frames=[];size()}}});
   src.play().catch(()=>{});
@@ -252,12 +258,12 @@ function startBuffer(src){
 function draw(){
   const now=performance.now(),target=now-delay*1000;
   let f=null;for(const x of frames){if(x.t<=target)f=x;else break}
-  if(f){ctx.save();if(mirror){ctx.translate(w,0);ctx.scale(-1,1)}ctx.drawImage(f.c,0,0,w,h);ctx.restore();setStatus(`Vertraging ${delay} s`,false)}
+  if(f){drawRotated(f.c);setStatus(`Vertraging ${delay} s`,false)}
   else{const have=frames.length?(now-frames[0].t)/1000:0;
     const src=lastSrc;const diag=src&&(src.readyState<2||src.paused)?` · camera geeft nog geen beeld (rs ${src.readyState}${src.paused?', gepauzeerd':''}, ${src.videoWidth}×${src.videoHeight})`:'';
     setStatus(`Buffer vult… ${Math.min(delay,have).toFixed(0)} / ${delay} s${diag} · je ziet nu live beeld`,true);
-    if(src&&src.readyState>=2&&sizedOK()){ctx.save();if(mirror){ctx.translate(w,0);ctx.scale(-1,1)}ctx.drawImage(src,0,0,w,h);ctx.restore();ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(0,h-36,w,36);ctx.fillStyle='#fff';ctx.font='700 18px system-ui';ctx.fillText(`LIVE · vertraagd beeld over ${Math.max(0,delay-have).toFixed(0)} s`,12,h-12)}
-    else{ctx.fillStyle='#000';ctx.fillRect(0,0,w,h)}}
+    if(src&&src.readyState>=2&&sizedOK()){drawRotated(src);const H=out.height,W=out.width;ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(0,H-36,W,36);ctx.fillStyle='#fff';ctx.font='700 18px system-ui';ctx.fillText(`LIVE · vertraagd beeld over ${Math.max(0,delay-have).toFixed(0)} s`,12,H-12)}
+    else{ctx.fillStyle='#000';ctx.fillRect(0,0,out.width,out.height)}}
   requestAnimationFrame(draw);
 }
 document.addEventListener('visibilitychange',()=>{if(mode==='local'||mode==='screen'){if(document.hidden)paused=true;else{paused=false;frames=[]}}});
