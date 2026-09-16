@@ -46,6 +46,7 @@
 <body>
 <canvas id="out"></canvas>
 <video id="camPreview" muted playsinline autoplay></video>
+<video id="pip" muted playsinline autoplay style="position:fixed;right:10px;top:10px;width:34vw;max-width:260px;border:2px solid #fff;border-radius:8px;display:none;z-index:5;background:#000"></video>
 <div id="status" class="hidden">–</div>
 
 <div id="menu"><div class="box">
@@ -105,7 +106,7 @@
 <div class="bar hidden" id="bar">
   <span class="handlewrap"><button class="handle" data-toggle="bar">▾ knoppen</button></span>
   <label id="delayWrap">Vertraging <input type="range" id="delay" min="2" max="30" step="1" value="10"> <b id="delayVal">10 s</b></label>
-  <button id="cam" class="hidden">Camera ⇄</button>
+  <button id="cam" class="hidden">Camera: achter</button>
   <button id="rec" class="hidden">● Opnemen</button>
   <button id="pause">Pauze</button>
   <button id="mirror">Spiegel</button>
@@ -141,13 +142,16 @@ $('stopAll').onclick=async()=>{
   if(timer){clearInterval(timer);timer=null}frames=[];
   if(pc){pc.close();pc=null}if(channel){try{channel.unsubscribe()}catch(e){}channel=null}
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
-  $('camPreview').srcObject=null;$('camPreview').style.display='none';$('out').style.display='block';ctx.clearRect(0,0,out.width,out.height);
+  $('camPreview').srcObject=null;$('camPreview').style.display='none';$('pip').style.display='none';$('pip').srcObject=null;$('out').style.display='block';ctx.clearRect(0,0,out.width,out.height);
   $('bar').classList.add('hidden');$('status').classList.add('hidden');$('menu').classList.remove('hidden');
   $('cam').classList.add('hidden');$('rec').classList.add('hidden');$('delayWrap').classList.remove('hidden');$('mirror').classList.remove('hidden');$('pause').classList.remove('hidden');
   paused=false;$('pause').textContent='Pauze';$('pause').classList.remove('on');mode=null;
 };
 $('fs').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{})};
-$('cam').onclick=()=>{if(recorder){alert('Stop eerst de opname.');return}facing=facing==='environment'?'user':'environment';startCamera().then(()=>{if(pc)renegotiate()})};
+let pipTimer=null;
+function camLabel(){$('cam').textContent='Camera: '+(facing==='environment'?'achter':'voor')}
+$('cam').onclick=()=>{if(recorder){alert('Stop eerst de opname.');return}facing=facing==='environment'?'user':'environment';camLabel();
+  startCamera().then(()=>{if(pc)renegotiate();if(mode==='local'){const pip=$('pip');pip.srcObject=stream;pip.style.display='block';setStatus('Camera gewisseld — live voorbeeld, buffer vult opnieuw',true);clearTimeout(pipTimer);pipTimer=setTimeout(()=>{pip.style.display='none';pip.srcObject=null},4000)}})};
 
 // ---------- opnemen (op het toestel dat filmt)
 let recorder=null,chunks=[],recStart=0,recTimer=null;
@@ -185,8 +189,8 @@ if(location.hash==='#cfg'){$('cfg').classList.remove('hidden');$('cfg').open=tru
 $('cfgSave').onclick=()=>{const u=$('cfgUrl').value.trim(),k=$('cfgKey').value.trim();if(u)localStorage.setItem('vt:url',u);else localStorage.removeItem('vt:url');if(k)localStorage.setItem('vt:key',k);else localStorage.removeItem('vt:key');location.reload()};
 
 $('btnHelp').onclick=()=>$('help').classList.remove('hidden');$('helpClose').onclick=()=>$('help').classList.add('hidden');
-$('btnLocal').onclick=async()=>{mode='local';showUi();$('cam').classList.remove('hidden');$('rec').classList.remove('hidden');await startCamera();startBuffer(video)};
-$('btnCam').onclick=async()=>{if(!needRoom())return;mode='cam';showUi();$('cam').classList.remove('hidden');$('rec').classList.remove('hidden');$('delayWrap').classList.add('hidden');$('mirror').classList.add('hidden');$('pause').classList.add('hidden');
+$('btnLocal').onclick=async()=>{mode='local';showUi();$('cam').classList.remove('hidden');$('rec').classList.remove('hidden');camLabel();await startCamera();startBuffer(video)};
+$('btnCam').onclick=async()=>{if(!needRoom())return;mode='cam';showUi();$('cam').classList.remove('hidden');$('rec').classList.remove('hidden');camLabel();$('delayWrap').classList.add('hidden');$('mirror').classList.add('hidden');$('pause').classList.add('hidden');
   await startCamera();$('camPreview').srcObject=stream;$('camPreview').style.display='block';$('out').style.display='none';joinRoom()};
 $('btnScreen').onclick=()=>{if(!needRoom())return;mode='screen';showUi();$('rec').classList.remove('hidden');joinRoom();setStatus('Wacht op het camera-toestel met code '+room+'…',true)};
 
