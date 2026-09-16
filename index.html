@@ -58,7 +58,7 @@
   <button id="btnLocal" class="alt">Camera en scherm op één toestel</button>
   <button id="btnPlay" class="alt">Opname bekijken</button>
   <button id="btnHelp" class="alt" style="font-size:15px;padding:10px 16px">Handleiding</button>
-  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 20</p>
+  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 21</p>
   <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
   <input type="file" id="playFile" accept="video/*" hidden>
   <details id="cfg" class="hidden"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
@@ -83,7 +83,7 @@
     <p>Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi. Alleen om elkaar te vinden is kort internet nodig (via de hotspot vanzelf). Bereik: 10–15 m in open ruimte.</p>
 
     <h3 style="color:#fff">Knoppen</h3>
-    <ul><li><b>Vertraging</b>: schuifregelaar, direct van kracht.</li><li><b>Camera ⇄</b>: voor- of achtercamera.</li><li><b>● Opnemen / ■ Stop</b>: neemt het live beeld op. Bewaard in Downloads (Android, laptop) of via het deelmenu (iPad/iPhone: "Bewaar video" in Foto's of "Bewaar in Bestanden").</li><li><b>Pauze</b>: bevriest het beeld om iets aan te wijzen.</li><li><b>Spiegel</b>: spiegelt het beeld.</li><li><b>↻ Draai</b>: draait het beeld in stappen van 90°, bv. als de telefoon met schermvergrendeling liggend filmt.</li><li><b>Vullen</b>: schermvullend, snijdt randen weg als de verhoudingen niet kloppen.</li><li><b>Fullscreen</b>.</li><li><b>■ Stop</b>: stopt camera en verbinding, terug naar het startscherm.</li><li><b>▾ knoppen</b>: klapt de balk in; tik op het beeld om ze terug te halen.</li></ul>
+    <ul><li><b>Vertraging</b>: schuifregelaar, direct van kracht.</li><li><b>Camera ⇄</b>: voor- of achtercamera.</li><li><b>● Opnemen / ■ Stop</b>: neemt het live beeld op. Bewaard in Downloads (Android, laptop) of via het deelmenu (iPad/iPhone: "Bewaar video" in Foto's of "Bewaar in Bestanden").</li><li><b>Pauze</b>: bevriest het beeld om iets aan te wijzen.</li><li><b>Spiegel</b>: spiegelt het beeld.</li><li><b>↻ Draai</b>: draait het beeld in stappen van 90°, bv. als de telefoon met schermvergrendeling liggend filmt.</li><li><b>Vullen</b>: schermvullend, snijdt randen weg als de verhoudingen niet kloppen.</li><li><b>Fullscreen</b> (niet op iPad: gebruik daar het beginscherm-icoon).</li><li><b>■ Stop</b>: stopt camera en verbinding, terug naar het startscherm.</li><li><b>▾ knoppen</b>: klapt de balk in; tik op het beeld om ze terug te halen.</li></ul>
 
     <h3 style="color:#fff">Opname bekijken</h3>
     <p>Startscherm → <b>Opname bekijken</b> → kies een video (Foto's of Bestanden). Voortgangsbalk om te spoelen, <b>⏮ Begin</b>, −5s/+5s, <b>−1 beeld / +1 beeld</b> om beeldje per beeldje te gaan, snelheid 1× / ½× / ¼×, Spiegel, Fullscreen. <b>Terug</b> sluit de video.</p>
@@ -155,6 +155,7 @@ $('stopAll').onclick=async()=>{
   $('cam').classList.add('hidden');$('rec').classList.add('hidden');$('delayWrap').classList.remove('hidden');$('mirror').classList.remove('hidden');$('pause').classList.remove('hidden');$('rot').classList.remove('hidden');
   paused=false;$('pause').textContent='Pauze';$('pause').classList.remove('on');mode=null;rot=0;$('rot').textContent='↻ Draai';$('rot').classList.remove('on');
 };
+if(!document.fullscreenEnabled){$('fs').classList.add('hidden');$('pbFs').classList.add('hidden')}
 $('fs').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{})};
 let pipTimer=null;
 function camLabel(){$('cam').textContent='Camera: '+(facing==='environment'?'achter':'voor')}
