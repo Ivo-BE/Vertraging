@@ -60,7 +60,7 @@
   <button id="btnLocal" class="alt">Camera en scherm op één toestel</button>
   <button id="btnPlay" class="alt">Opname bekijken</button>
   <button id="btnHelp" class="alt" style="font-size:15px;padding:10px 16px">Handleiding</button>
-  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 26</p>
+  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 27</p>
   <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
   <input type="file" id="playFile" accept="video/*" hidden>
   <details id="cfg" class="hidden"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
@@ -84,7 +84,7 @@
     <ol><li>Zet beide toestellen op <b>dezelfde wifi</b>, of zet de hotspot van de telefoon aan en verbind de tablet daarmee.</li><li>Op het toestel dat toont (tablet, laptop of tweede telefoon): typ een <b>code</b> (min. 4 tekens, bv. VNKD1) → <b>Dit toestel is het scherm</b>.</li><li>Op het toestel dat filmt (meestal de telefoon): dezelfde code → <b>Dit toestel is de camera</b>. Liggend op het statief.</li><li>Na enkele seconden "Verbonden"; de vertraging stel je in op het toestel dat toont.</li></ol>
     <h3 style="color:#fff">Meerdere camera's</h3>
     <p>Meer telefoons als camera op één scherm kan ook: elk toestel dezelfde code en <b>Dit toestel is de camera</b>. Het scherm toont ze als raster (2 naast elkaar, of 2×2), allemaal met dezelfde vertraging, in iets lagere resolutie. Handig om een actie van voor én van opzij tegelijk terug te zien. Per camera kun je in de knoppenbalk een eigen vertraging instellen. Tot vier camera's; op een oudere tablet liever twee.</p>
-    <p>Naast de vertraging staan per camera ook <b>↻</b> (draaien) en <b>⇄</b> (spiegelen), voor een telefoon die anders gemonteerd staat.</p>
+    <p>Naast de vertraging staan per camera ook <b>↻</b> (draaien) en <b>⇄</b> (spiegelen), voor een telefoon die anders gemonteerd staat; de algemene Draai- en Spiegelknop verdwijnen dan.</p>
     <p><b>Opnemen op het scherm-toestel</b> neemt op wat je ziet: bij meerdere camera's dus het raster, gesynchroniseerd en met de vertraging toegepast. Voor een opname op volle resolutie per camera neem je op de telefoon zelf op.</p>
     <h3 style="color:#fff">Meerdere schermen</h3>
     <p>Meer schermen op dezelfde camera kan: geef elk scherm-toestel dezelfde code en tik overal <b>Dit toestel is het scherm</b>. Elk scherm kiest zijn eigen vertraging, bv. een tablet bij het net op 8 s voor de speler en een laptop bij de bank op 3 s voor de coach. De camera toont hoeveel schermen verbonden zijn. Tot drie à vier schermen gaat vlot over wifi; de volgorde van starten maakt niet uit.</p>
@@ -255,7 +255,7 @@ const cams={};let camOrder=[];let lastSrc=null;let sizedFlag=false;const sizedOK
 let w=1280,h=720;                                            // uitvoercanvas
 function camCount(){return camOrder.length}
 const camDelay=cam=>cam.delay!=null?cam.delay:delay;
-function renderCamDelays(){const box=$('camDelays');if(!box)return;const n=camCount();box.classList.toggle('hidden',n<2);if(n<2)return;
+function renderCamDelays(){const box=$('camDelays');if(!box)return;const n=camCount();box.classList.toggle('hidden',n<2);$('rot').classList.toggle('hidden',n>=2);$('mirror').classList.toggle('hidden',n>=2);if(n>=2&&(rot||mirror)){rot=0;mirror=false;$('rot').textContent='↻ Draai';$('rot').classList.remove('on');$('mirror').classList.remove('on');applyRot()}if(n<2)return;
   box.innerHTML=camOrder.map((id,i)=>{const c=cams[id];const d=camDelay(c);return `<label>Cam ${i+1} <input type="range" min="2" max="30" step="1" value="${d}" data-cam="${id}"> <b>${d} s</b> <button class="mini ${c.rot?'on':''}" data-rot="${id}">↻${c.rot?' '+c.rot+'°':''}</button><button class="mini ${c.mirror?'on':''}" data-mir="${id}">⇄</button></label>`}).join('');
   box.querySelectorAll('input').forEach(inp=>inp.oninput=()=>{cams[inp.dataset.cam].delay=+inp.value;inp.nextElementSibling.textContent=inp.value+' s'});
   box.querySelectorAll('[data-rot]').forEach(b=>b.onclick=()=>{const c=cams[b.dataset.rot];c.rot=(c.rot+90)%360;renderCamDelays()});
