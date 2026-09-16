@@ -53,7 +53,7 @@
   <button id="btnPlay" class="alt">Opname bekijken</button>
   <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van telefoon naar iPad over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
   <input type="file" id="playFile" accept="video/*" hidden>
-  <details id="cfg"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
+  <details id="cfg" class="hidden"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
     <div style="display:grid;gap:8px;margin-top:10px">
       <input id="cfgUrl" placeholder="https://xxxx.supabase.co" style="font-size:14px;letter-spacing:0;text-transform:none">
       <input id="cfgKey" placeholder="anon public key" style="font-size:14px;letter-spacing:0;text-transform:none">
@@ -136,6 +136,7 @@ function stopRec(){if(recorder&&recorder.state!=='inactive')recorder.stop()}
 window.addEventListener('beforeunload',e=>{if(recorder){e.preventDefault();e.returnValue=''}});
 $('room').value=localStorage.getItem('vt:room')||'';
 $('cfgUrl').value=SUPABASE_URL;$('cfgKey').value=SUPABASE_ANON_KEY;
+if(location.hash==='#cfg'){$('cfg').classList.remove('hidden');$('cfg').open=true}
 
 $('cfgSave').onclick=()=>{const u=$('cfgUrl').value.trim(),k=$('cfgKey').value.trim();if(u)localStorage.setItem('vt:url',u);else localStorage.removeItem('vt:url');if(k)localStorage.setItem('vt:key',k);else localStorage.removeItem('vt:key');location.reload()};
 
