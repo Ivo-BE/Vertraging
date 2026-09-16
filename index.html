@@ -58,7 +58,7 @@
   <button id="btnLocal" class="alt">Camera en scherm op één toestel</button>
   <button id="btnPlay" class="alt">Opname bekijken</button>
   <button id="btnHelp" class="alt" style="font-size:15px;padding:10px 16px">Handleiding</button>
-  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 16</p>
+  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 17</p>
   <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
   <input type="file" id="playFile" accept="video/*" hidden>
   <details id="cfg" class="hidden"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
@@ -229,14 +229,14 @@ async function startCamera(){
 }
 
 // ---------- vertragingsbuffer (op het scherm-toestel)
-let lastSrc=null;
+let lastSrc=null;let sizedFlag=false;const sizedOK=()=>sizedFlag;
 function startBuffer(src){
   lastSrc=src;frames=[];
   // vaste canvasgrootte op basis van de beeldverhouding; latere resolutiewisselingen (WebRTC schaalt op) veranderen niets aan de weergave
-  let sized=false;const t0=performance.now();
+  let sized=false;sizedFlag=false;const t0=performance.now();
   const dims=()=>{let vw=src.videoWidth,vh=src.videoHeight;if((!vw||!vh)&&src.srcObject){const tr=src.srcObject.getVideoTracks()[0];const st=tr&&tr.getSettings?tr.getSettings():{};vw=st.width||0;vh=st.height||0}
     if((!vw||!vh)&&performance.now()-t0>1500){vw=1280;vh=720}return[vw,vh]};
-  const size=()=>{const [vw,vh]=dims();if(!vw||!vh)return;const ar=vw/vh;const landscape=ar>=1;w=landscape?960:Math.round(960*ar);h=landscape?Math.round(960/ar):960;out.width=w;out.height=h;sized=true};
+  const size=()=>{const [vw,vh]=dims();if(!vw||!vh)return;const ar=vw/vh;const landscape=ar>=1;w=landscape?960:Math.round(960*ar);h=landscape?Math.round(960/ar):960;out.width=w;out.height=h;sized=true;sizedFlag=true};
   size();src.addEventListener('loadedmetadata',()=>{if(!sized)size()});
   src.addEventListener('resize',()=>{if(!sized)size();else{const vw=src.videoWidth,vh=src.videoHeight;if(vw&&vh&&Math.abs(vw/vh-w/h)>0.05){frames=[];size()}}});
   src.play().catch(()=>{});
@@ -255,7 +255,9 @@ function draw(){
   if(f){ctx.save();if(mirror){ctx.translate(w,0);ctx.scale(-1,1)}ctx.drawImage(f.c,0,0,w,h);ctx.restore();setStatus(`Vertraging ${delay} s`,false)}
   else{const have=frames.length?(now-frames[0].t)/1000:0;
     const src=lastSrc;const diag=src&&(src.readyState<2||src.paused)?` · camera geeft nog geen beeld (rs ${src.readyState}${src.paused?', gepauzeerd':''}, ${src.videoWidth}×${src.videoHeight})`:'';
-    setStatus(`Buffer vult… ${Math.min(delay,have).toFixed(0)} / ${delay} s${diag}`,true);ctx.fillStyle='#000';ctx.fillRect(0,0,w,h)}
+    setStatus(`Buffer vult… ${Math.min(delay,have).toFixed(0)} / ${delay} s${diag} · je ziet nu live beeld`,true);
+    if(src&&src.readyState>=2&&sizedOK()){ctx.save();if(mirror){ctx.translate(w,0);ctx.scale(-1,1)}ctx.drawImage(src,0,0,w,h);ctx.restore();ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillRect(0,0,w,34);ctx.fillStyle='#fff';ctx.font='700 18px system-ui';ctx.fillText(`LIVE · vertraagd beeld over ${Math.max(0,delay-have).toFixed(0)} s`,12,24)}
+    else{ctx.fillStyle='#000';ctx.fillRect(0,0,w,h)}}
   requestAnimationFrame(draw);
 }
 document.addEventListener('visibilitychange',()=>{if(mode==='local'||mode==='screen'){if(document.hidden)paused=true;else{paused=false;frames=[]}}});
