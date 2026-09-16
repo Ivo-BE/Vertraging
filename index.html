@@ -58,7 +58,7 @@
   <button id="btnLocal" class="alt">Camera en scherm op één toestel</button>
   <button id="btnPlay" class="alt">Opname bekijken</button>
   <button id="btnHelp" class="alt" style="font-size:15px;padding:10px 16px">Handleiding</button>
-  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 17</p>
+  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 18</p>
   <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
   <input type="file" id="playFile" accept="video/*" hidden>
   <details id="cfg" class="hidden"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
@@ -142,7 +142,7 @@ if(localStorage.getItem('vt:fill')){document.body.classList.add('fill');$('fill'
 $('stopAll').onclick=async()=>{
   if(recorder){if(!confirm('De opname loopt nog. Stoppen en bewaren?'))return;stopRec();await new Promise(r=>setTimeout(r,600))}
   if(timer){clearInterval(timer);timer=null}frames=[];
-  if(pc){pc.close();pc=null}if(channel){try{channel.unsubscribe()}catch(e){}channel=null}
+  clearInterval(wantTimer);if(pc){pc.close();pc=null}if(channel){try{channel.unsubscribe()}catch(e){}channel=null}
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   $('camPreview').srcObject=null;$('camPreview').style.display='none';$('pip').style.display='none';$('pip').srcObject=null;$('out').style.display='block';ctx.clearRect(0,0,out.width,out.height);
   $('bar').classList.add('hidden');$('status').classList.add('hidden');$('menu').classList.remove('hidden');
@@ -256,7 +256,7 @@ function draw(){
   else{const have=frames.length?(now-frames[0].t)/1000:0;
     const src=lastSrc;const diag=src&&(src.readyState<2||src.paused)?` · camera geeft nog geen beeld (rs ${src.readyState}${src.paused?', gepauzeerd':''}, ${src.videoWidth}×${src.videoHeight})`:'';
     setStatus(`Buffer vult… ${Math.min(delay,have).toFixed(0)} / ${delay} s${diag} · je ziet nu live beeld`,true);
-    if(src&&src.readyState>=2&&sizedOK()){ctx.save();if(mirror){ctx.translate(w,0);ctx.scale(-1,1)}ctx.drawImage(src,0,0,w,h);ctx.restore();ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillRect(0,0,w,34);ctx.fillStyle='#fff';ctx.font='700 18px system-ui';ctx.fillText(`LIVE · vertraagd beeld over ${Math.max(0,delay-have).toFixed(0)} s`,12,24)}
+    if(src&&src.readyState>=2&&sizedOK()){ctx.save();if(mirror){ctx.translate(w,0);ctx.scale(-1,1)}ctx.drawImage(src,0,0,w,h);ctx.restore();ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(0,h-36,w,36);ctx.fillStyle='#fff';ctx.font='700 18px system-ui';ctx.fillText(`LIVE · vertraagd beeld over ${Math.max(0,delay-have).toFixed(0)} s`,12,h-12)}
     else{ctx.fillStyle='#000';ctx.fillRect(0,0,w,h)}}
   requestAnimationFrame(draw);
 }
@@ -268,17 +268,21 @@ function joinRoom(){
   const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
   channel=sb.channel('vertraging:'+room,{config:{broadcast:{self:false}}});
   channel.on('broadcast',{event:'sig'},({payload})=>onSignal(payload)).subscribe(st=>{
-    if(st==='SUBSCRIBED'){if(mode==='screen')send({type:'want'});else setStatus('Camera klaar, code '+room+'. Wacht op scherm…',true)}
+    if(st==='SUBSCRIBED'){
+      if(mode==='screen'){send({type:'want'});clearInterval(wantTimer);wantTimer=setInterval(()=>{if(!pc||!['connected','connecting'].includes(pc.connectionState))send({type:'want'})},3000)}
+      else{send({type:'ready'});setStatus('Camera klaar, code '+room+'. Wacht op scherm…',true)}
+    }
   });
 }
+let wantTimer=null;
 const send=msg=>channel.send({type:'broadcast',event:'sig',payload:{...msg,from:mode}});
 function newPc(){
   if(pc)pc.close();
   pc=new RTCPeerConnection(ICE);
   pc.onicecandidate=e=>{if(e.candidate)send({type:'ice',cand:e.candidate})};
   pc.onconnectionstatechange=()=>{
-    if(pc.connectionState==='connected')setStatus(mode==='cam'?'Verbonden met scherm':'Verbonden – buffer vult…',true);
-    if(['failed','disconnected'].includes(pc.connectionState)){setStatus('Verbinding verbroken, opnieuw proberen…',true);if(mode==='screen')setTimeout(()=>send({type:'want'}),1500)}
+    if(pc.connectionState==='connected'){setStatus(mode==='cam'?'Verbonden met scherm':'Verbonden – buffer vult…',true);clearInterval(wantTimer)}
+    if(['failed','disconnected'].includes(pc.connectionState)){setStatus('Verbinding verbroken, opnieuw proberen…',true);if(mode==='screen'){clearInterval(wantTimer);wantTimer=setInterval(()=>{if(!pc||!['connected','connecting'].includes(pc.connectionState))send({type:'want'})},3000)}}
   };
   if(mode==='screen')pc.ontrack=e=>{stream=e.streams[0];const v=document.createElement('video');v.muted=true;v.playsInline=true;v.autoplay=true;v.srcObject=stream;v.play().then(()=>startBuffer(v))};
   return pc;
@@ -287,11 +291,12 @@ async function renegotiate(){newPc();stream.getTracks().forEach(t=>pc.addTrack(t
 async function onSignal(m){
   if(m.from===mode)return;
   if(mode==='cam'){
-    if(m.type==='want'){if(!stream)return;await renegotiate()}
+    if(m.type==='want'){if(!stream)return;if(pc&&['connected','connecting'].includes(pc.connectionState))return;await renegotiate()}
     else if(m.type==='answer'&&pc){await pc.setRemoteDescription(m.sdp)}
     else if(m.type==='ice'&&pc){try{await pc.addIceCandidate(m.cand)}catch(e){}}
   }else if(mode==='screen'){
-    if(m.type==='offer'){newPc();await pc.setRemoteDescription(m.sdp);const a=await pc.createAnswer();await pc.setLocalDescription(a);send({type:'answer',sdp:a})}
+    if(m.type==='ready'){send({type:'want'})}
+    else if(m.type==='offer'){newPc();await pc.setRemoteDescription(m.sdp);const a=await pc.createAnswer();await pc.setLocalDescription(a);send({type:'answer',sdp:a})}
     else if(m.type==='ice'&&pc){try{await pc.addIceCandidate(m.cand)}catch(e){}}
   }
 }
