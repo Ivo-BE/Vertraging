@@ -58,7 +58,7 @@
   <button id="btnLocal" class="alt">Camera en scherm op één toestel</button>
   <button id="btnPlay" class="alt">Opname bekijken</button>
   <button id="btnHelp" class="alt" style="font-size:15px;padding:10px 16px">Handleiding</button>
-  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 21</p>
+  <p style="font-size:11px;color:#555;margin:4px 0 0">versie 22</p>
   <p style="font-size:12px;color:#888;margin-top:6px">Beelden blijven op je toestel. Het beeld gaat rechtstreeks van het ene toestel naar het andere over de wifi; opnames worden lokaal bewaard. Niets gaat naar de cloud.</p>
   <input type="file" id="playFile" accept="video/*" hidden>
   <details id="cfg" class="hidden"><summary style="color:#777;cursor:pointer;font-size:13px">Geavanceerd: andere verbinding (Supabase)</summary>
@@ -86,7 +86,7 @@
     <ul><li><b>Vertraging</b>: schuifregelaar, direct van kracht.</li><li><b>Camera ⇄</b>: voor- of achtercamera.</li><li><b>● Opnemen / ■ Stop</b>: neemt het live beeld op. Bewaard in Downloads (Android, laptop) of via het deelmenu (iPad/iPhone: "Bewaar video" in Foto's of "Bewaar in Bestanden").</li><li><b>Pauze</b>: bevriest het beeld om iets aan te wijzen.</li><li><b>Spiegel</b>: spiegelt het beeld.</li><li><b>↻ Draai</b>: draait het beeld in stappen van 90°, bv. als de telefoon met schermvergrendeling liggend filmt.</li><li><b>Vullen</b>: schermvullend, snijdt randen weg als de verhoudingen niet kloppen.</li><li><b>Fullscreen</b> (niet op iPad: gebruik daar het beginscherm-icoon).</li><li><b>■ Stop</b>: stopt camera en verbinding, terug naar het startscherm.</li><li><b>▾ knoppen</b>: klapt de balk in; tik op het beeld om ze terug te halen.</li></ul>
 
     <h3 style="color:#fff">Opname bekijken</h3>
-    <p>Startscherm → <b>Opname bekijken</b> → kies een video (Foto's of Bestanden). Voortgangsbalk om te spoelen, <b>⏮ Begin</b>, −5s/+5s, <b>−1 beeld / +1 beeld</b> om beeldje per beeldje te gaan, snelheid 1× / ½× / ¼×, Spiegel, Fullscreen. <b>Terug</b> sluit de video.</p>
+    <p>Startscherm → <b>Opname bekijken</b> → kies een video (Foto's of Bestanden). Voortgangsbalk om te spoelen, <b>⏮ Begin</b>, −5s/+5s, <b>−1 beeld / +1 beeld</b> om beeldje per beeldje te gaan, snelheid 1× / ½× / ¼×, Spiegel, <b>↻ Draai</b> en <b>Vullen</b> (een opname is het ruwe camerabeeld; zet ze hiermee recht en schermvullend), Fullscreen. <b>Terug</b> sluit de video.</p>
 
     <h3 style="color:#fff">Tips</h3>
     <ul><li>Zet <b>automatisch vergrendelen uit</b> (Instellingen → Scherm) en de lader erin; camera + hotspot + opname trekken de batterij snel leeg.</li><li>Laad de app thuis één keer na een update; daarna werkt "één toestel" en "opname bekijken" ook zonder bereik.</li><li>Camera-toestel liggend = breedbeeld op het scherm. Zet de <b>schermvergrendeling uit</b> en draai het toestel vóór je start; anders komt het beeld gedraaid aan (herstel met ↻ Draai).</li><li>Op een iPad opnemen: liever in Safari dan vanaf het beginscherm-icoon; dan is bewaren betrouwbaarder.</li><li>Geen "Verbonden"? Controleer de code op beide toestellen, de wifi/hotspot, en of de telefoon nog internet heeft.</li></ul>
@@ -102,7 +102,7 @@
   <label style="flex:1 1 100%"><span id="pbTime" style="min-width:90px;font-variant-numeric:tabular-nums">0:00 / 0:00</span><input type="range" id="pbSeek" min="0" max="1000" value="0" style="flex:1"></label>
   <button id="pbStart">⏮ Begin</button>
   <button id="pb5">−5s</button><button id="pbf">−1 beeld</button><button id="pbPlay">▶︎ / ⏸</button><button id="pff">+1 beeld</button><button id="pf5">+5s</button>
-  <button id="pbSpeed" style="min-width:64px">1×</button><button id="pbMirror">Spiegel</button><button id="pbFs">Fullscreen</button><button id="pbBack">Terug</button>
+  <button id="pbSpeed" style="min-width:64px">1×</button><button id="pbMirror">Spiegel</button><button id="pbRot">↻ Draai</button><button id="pbFill">Vullen</button><button id="pbFs">Fullscreen</button><button id="pbBack">Terug</button>
 </div>
 <div class="bar hidden" id="bar">
   <span class="handlewrap"><button class="handle" data-toggle="bar">▾ knoppen</button></span>
@@ -213,9 +213,14 @@ let seeking=false;$('pbSeek').oninput=()=>{seeking=true;if(pb.duration)pb.curren
 $('pb5').onclick=()=>{pb.currentTime=Math.max(0,pb.currentTime-5)};$('pf5').onclick=()=>{pb.currentTime+=5};
 $('pbf').onclick=()=>{pb.pause();pb.currentTime=Math.max(0,pb.currentTime-1/25)};$('pff').onclick=()=>{pb.pause();pb.currentTime+=1/25};
 $('pbSpeed').onclick=()=>{spi=(spi+1)%speeds.length;pb.playbackRate=speeds[spi];$('pbSpeed').textContent=(speeds[spi]===1?'1':speeds[spi]===0.5?'½':'¼')+'×'};
-$('pbMirror').onclick=()=>{pb.style.transform=pb.style.transform?'':'scaleX(-1)'};
+let pbRot=0,pbMir=false,pbFillOn=false;
+function applyPb(){const side=pbRot%180!==0;pb.style.objectFit=pbFillOn?'cover':'contain';
+  if(side){pb.style.width='100vh';pb.style.height='100vw';pb.style.left='50%';pb.style.top='50%';pb.style.transform=`translate(-50%,-50%) rotate(${pbRot}deg)${pbMir?' scaleX(-1)':''}`}
+  else{pb.style.width='100%';pb.style.height='100%';pb.style.left='0';pb.style.top='0';pb.style.transform=`rotate(${pbRot}deg)${pbMir?' scaleX(-1)':''}`}
+  $('pbRot').textContent='↻ Draai'+(pbRot?' '+pbRot+'°':'');$('pbRot').classList.toggle('on',pbRot!==0);$('pbFill').classList.toggle('on',pbFillOn);$('pbMirror').classList.toggle('on',pbMir)}
+$('pbMirror').onclick=()=>{pbMir=!pbMir;applyPb()};$('pbRot').onclick=()=>{pbRot=(pbRot+90)%360;applyPb()};$('pbFill').onclick=()=>{pbFillOn=!pbFillOn;applyPb()};
 $('pbFs').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{})};
-$('pbBack').onclick=()=>{pb.pause();pb.removeAttribute('src');pb.style.display='none';$('pbar').classList.add('hidden');$('status').classList.add('hidden');$('menu').classList.remove('hidden');$('playFile').value=''};
+$('pbBack').onclick=()=>{pb.pause();pb.removeAttribute('src');pb.style.display='none';pbRot=0;pbMir=false;pbFillOn=false;applyPb();$('pbar').classList.add('hidden');$('status').classList.add('hidden');$('menu').classList.remove('hidden');$('playFile').value=''};
 const fmtT=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
 pb.ontimeupdate=()=>{const dur=isFinite(pb.duration)?pb.duration:0;$('pbTime').textContent=`${fmtT(pb.currentTime)} / ${fmtT(dur)}`;if(!seeking&&dur)$('pbSeek').value=Math.round(1000*pb.currentTime/dur);setStatus(fmtT(pb.currentTime),false)};
 pb.ondurationchange=()=>{if(!isFinite(pb.duration)){pb.currentTime=1e9;pb.addEventListener('seeked',()=>{pb.currentTime=0},{once:true})}};
